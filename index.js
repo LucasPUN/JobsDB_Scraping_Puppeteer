@@ -11,7 +11,7 @@ import puppeteer from "puppeteer";
     const page = await browser.newPage();
 
     // Navigate to the desired URL
-    await page.goto('https://hk.jobsdb.com/jobs-in-information-communication-technology?subclassification=6287%2C6290&jobId=74922497&type=standout');
+    await page.goto('https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=1');
 
     // Wait for the content to load
     await page.waitForSelector('[data-card-type="JobCard"]');
@@ -38,13 +38,31 @@ import puppeteer from "puppeteer";
     console.log(jobCardData);
 
     const jobCards = await page.$$('[data-card-type="JobCard"]');
-    await page.goBack();
+
 
     for (const jobCard of jobCards) {
         await jobCard.click();
-        await page.waitForNavigation();
 
-        console.log("hihi")
+        await page.waitForSelector('[data-automation="jobAdDetails"]');
+
+        const detailData = await page.evaluate(() => {
+            // Add more fields as needed
+            const jobDetail = document.querySelectorAll('[data-automation="jobAdDetails"]');
+            const jobDetailData = [];
+            const data = {};
+            jobDetail.forEach(element => {
+                const key = element.getAttribute('data-automation');
+                const value = element.innerText.trim();
+                data[key] = value;
+            });
+            jobDetailData.push(data);
+            return jobDetailData;
+        });
+
+        console.log(detailData);
+
+        // Go back to the job listing page
+        // await page.goBack();
     }
 
     // Close the browser
