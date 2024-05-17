@@ -8,76 +8,77 @@ async function scrapeJobs() {
 
     const page = await browser.newPage();
 
-    let currentPage = 1;
-    let totalPages = 2;
+    const salaryRanges = ["0-11000", "11000-14000", "14000-17000", "17000-20000", "20000-25000", "25000-30000", "30000-35000", "35000-40000", "40000-50000", "50000-60000", "60000-80000", "80000-120000", "120000-"];
+    const currentDate = new Date().toISOString().split('T')[0];
 
-    while (currentPage <= totalPages) {
-        const url = `https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=3&page=${currentPage}&salaryrange=0-14000&salarytype=monthly`;
+    for (const salaryRange of salaryRanges) {
+        let currentPage = 1;
+        let totalPages;
 
-        await page.goto(url);
-        await page.waitForSelector('[data-card-type="JobCard"]');
-        totalPages = await page.evaluate(() => {
-            const totalJobsCount = document.querySelector('[data-automation="totalJobsCount"]').innerText;
-            return Math.ceil(Number(totalJobsCount) / 32); // 使用实际总工作数计算页数
-        });
+        do {
+            const url = `https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=1&page=${currentPage}&salaryrange=${salaryRanges}&salarytype=monthly`;
 
-        const jobCardData = await page.evaluate(() => {
-            const jobCards = document.querySelectorAll('[data-card-type="JobCard"]');
-            const jobData = [];
-            jobCards.forEach(card => {
-                const dataElements = card.querySelectorAll('[data-automation]');
-                const data = {};
-                data["id"] = card.dataset.jobId;
-                dataElements.forEach(element => {
-                    const key = element.getAttribute('data-automation');
-                    const value = element.innerText.trim();
-                    data[key] = value;
-                });
-                jobData.push(data);
-            });
-            return jobData;
-        });
-
-        const jobCards = await page.$$('[data-card-type="JobCard"]');
-        const combinedData = [];
-
-        for (const jobCard of jobCards) {
-            const jobTitleElement = await jobCard.$('[data-automation="jobTitle"]');
-            await jobTitleElement.click();
-
-            await page.waitForSelector('[data-automation="jobAdDetails"]');
-
-            const detailData = await page.evaluate(() => {
-                const jobDetail = document.querySelectorAll('[data-automation="jobAdDetails"]');
-                const jobDetailData = [];
-                const data = {};
-                jobDetail.forEach(element => {
-                    const key = element.getAttribute('data-automation');
-                    const value = element.innerText.trim();
-                    data[key] = value;
-                });
-                jobDetailData.push(data);
-                return jobDetailData;
+            await page.goto(url);
+            await page.waitForSelector('[data-card-type="JobCard"]');
+            totalPages = await page.evaluate(() => {
+                const totalJobsCount = document.querySelector('[data-automation="totalJobsCount"]').innerText;
+                return Math.ceil(Number(totalJobsCount) / 32);
             });
 
-            const combinedItem = { jobCardData: jobCardData.shift(), detailData: detailData.shift() };
-            combinedData.push(combinedItem);
-        }
-        console.log(combinedData);
+            const jobCardData = await page.evaluate(() => {
+                const jobCards = document.querySelectorAll('[data-card-type="JobCard"]');
+                const jobData = [];
+                jobCards.forEach(card => {
+                    const dataElements = card.querySelectorAll('[data-automation]');
+                    const data = {};
+                    data["id"] = card.dataset.jobId;
+                    dataElements.forEach(element => {
+                        const key = element.getAttribute('data-automation');
+                        const value = element.innerText.trim();
+                        data[key] = value;
+                    });
+                    jobData.push(data);
+                });
+                return jobData;
+            });
 
-        currentPage++;
+            const jobCards = await page.$$('[data-card-type="JobCard"]');
+            const combinedData = [];
 
+            for (const jobCard of jobCards) {
+                const jobTitleElement = await jobCard.$('[data-automation="jobTitle"]');
+                await jobTitleElement.click();
+
+                await page.waitForSelector('[data-automation="jobAdDetails"]');
+
+                const detailData = await page.evaluate(() => {
+                    const jobDetail = document.querySelectorAll('[data-automation="jobAdDetails"]');
+                    const jobDetailData = [];
+                    const data = {};
+                    jobDetail.forEach(element => {
+                        const key = element.getAttribute('data-automation');
+                        const value = element.innerText.trim();
+                        data[key] = value;
+                    });
+                    jobDetailData.push(data);
+                    return jobDetailData;
+                });
+
+                const combinedItem = {
+                    date: currentDate,
+                    salaryRange: salaryRange,
+                    jobCardData: jobCardData.shift(),
+                    detailData: detailData.shift()
+                };
+                combinedData.push(combinedItem);
+            }
+            console.log(combinedData);
+
+            currentPage++;
+        } while (currentPage <= totalPages)
     }
 
     await browser.close();
 }
 
-// 获取当前时间
-const now = new Date();
-// 计算距离明天11:50的时间间隔
-const delay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 16, 8, 0, 0) - now;
-
-// 延迟执行scrapeJobs函数
-setTimeout(async () => {
-    await scrapeJobs();
-}, delay);
+await scrapeJobs();
