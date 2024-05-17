@@ -67,12 +67,13 @@ async function scrapeJobs() {
                 const combinedItem = {
                     date: currentDate,
                     salaryRange: salaryRange,
-                    jobCardData: jobCardData.shift(),
-                    detailData: detailData.shift()
+                    ...jobCardData.shift(),
+                    ...detailData.shift()
                 };
+                console.log(JSON.stringify(combinedItem))
                 combinedData.push(combinedItem);
             }
-            console.log(combinedData);
+            // console.log(JSON.stringify(combinedData));
 
             currentPage++;
         } while (currentPage <= totalPages)
