@@ -1,8 +1,12 @@
 import puppeteer from "puppeteer";
+import * as fs from "node:fs";
+import axios from "axios";
+
+const baseUrl = "http://localhost:3000";
 
 async function scrapeJobs() {
     const browser = await puppeteer.launch({
-        headless: false,
+        headless: true,
         defaultViewport: null
     });
 
@@ -16,7 +20,7 @@ async function scrapeJobs() {
         let totalPages;
 
         do {
-            const url = `https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=1&page=${currentPage}&salaryrange=${salaryRanges}&salarytype=monthly`;
+            const url = `https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=1&page=${currentPage}&salaryrange=${salaryRange}&salarytype=monthly&sortmode=ListedDate`;
 
             await page.goto(url);
             await page.waitForSelector('[data-card-type="JobCard"]');
@@ -70,11 +74,34 @@ async function scrapeJobs() {
                     ...jobCardData.shift(),
                     ...detailData.shift()
                 };
-                console.log(JSON.stringify(combinedItem))
+                // console.log(JSON.stringify(combinedItem))
                 combinedData.push(combinedItem);
             }
-            // console.log(JSON.stringify(combinedData));
 
+            // console.log(JSON.stringify(combinedData));
+            // fs.writeFile(`data/data-${salaryRange}-page-${currentPage}.json`, JSON.stringify(combinedData), (err) => {
+            //     if (err) {
+            //         console.log('Error writing file:', err);
+            //     } else {
+            //         console.log('File written successfully');
+            //     }
+            // });
+            // console.log(combinedData);
+            try {
+                console.log(`Calling API ${salaryRange}-page-${currentPage}....`)
+                await axios.post(
+                    `${baseUrl}/v1/job-detail-list`,
+                    JSON.stringify(combinedData),
+                    {
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+                console.log(`Successfully added ${salaryRange}-page-${currentPage} to server`);
+            } catch (err) {
+                console.error(err);
+            }
             currentPage++;
         } while (currentPage <= totalPages)
     }
