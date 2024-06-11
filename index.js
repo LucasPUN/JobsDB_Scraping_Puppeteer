@@ -6,13 +6,13 @@ const baseUrl = "http://localhost:3000";
 
 async function scrapeJobs() {
     const browser = await puppeteer.launch({
-        headless: true,
+        headless: false,
         defaultViewport: null
     });
 
     const page = await browser.newPage();
-
-    const salaryRanges = ["0-11000", "11000-14000", "14000-17000", "17000-20000", "20000-25000", "25000-30000", "30000-35000", "35000-40000", "40000-50000", "50000-60000", "60000-80000", "80000-120000", "120000-"];
+    const salaryRanges = ["17000-20000", "20000-25000"];
+    // const salaryRanges = ["0-11000", "11000-14000", "14000-17000", "17000-20000", "20000-25000", "25000-30000", "30000-35000", "35000-40000", "40000-50000", "50000-60000", "60000-80000", "80000-120000", "120000-"];
     const currentDate = new Date().toISOString().split('T')[0];
 
     for (const salaryRange of salaryRanges) {
@@ -49,6 +49,10 @@ async function scrapeJobs() {
             const jobCards = await page.$$('[data-card-type="JobCard"]');
             const combinedData = [];
 
+            let javaCount = 0;
+            let javaScriptCount = 0;
+            let reactJsCount = 0;
+
             for (const jobCard of jobCards) {
                 const jobTitleElement = await jobCard.$('[data-automation="jobTitle"]');
                 await jobTitleElement.click();
@@ -68,25 +72,50 @@ async function scrapeJobs() {
                     return jobDetailData;
                 });
 
+                const jobDescription = detailData[0]?.['jobAdDetails'].toLowerCase().replace(/\s+/g, '');
+
+                // 统计关键字出现次数
+                if (jobDescription.includes('java')) javaCount++;
+                if (jobDescription.includes('javascript')) javaScriptCount++;
+                if (jobDescription.includes('reactjs')) reactJsCount++;
+
                 const combinedItem = {
                     date: currentDate,
                     salaryRange: salaryRange,
                     ...jobCardData.shift(),
                     ...detailData.shift()
                 };
-                // console.log(JSON.stringify(combinedItem))
                 combinedData.push(combinedItem);
             }
 
-            // console.log(JSON.stringify(combinedData));
-            // fs.writeFile(`data/data-${salaryRange}-page-${currentPage}.json`, JSON.stringify(combinedData), (err) => {
-            //     if (err) {
-            //         console.log('Error writing file:', err);
-            //     } else {
-            //         console.log('File written successfully');
-            //     }
-            // });
-            // console.log(combinedData);
+            const countItem = {
+                salaryRange: salaryRange,
+                total: combinedData.length,
+                JAVA: javaCount,
+                JavaScript: javaScriptCount,
+                ReactJS: reactJsCount,
+                date: currentDate
+            };
+            console.log(`Java count: ${javaCount}`);
+            console.log(`JavaScript count: ${javaScriptCount}`);
+            console.log(`ReactJS count: ${reactJsCount}`);
+
+            try {
+                console.log(`Calling count API `)
+                await axios.post(
+                    `${baseUrl}/v1/job-count`,
+                    JSON.stringify(countItem),
+                    {
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+                console.log(`Successfully added count`);
+            } catch (err) {
+                console.error(err);
+            }
+
             try {
                 console.log(`Calling API ${salaryRange}-page-${currentPage}....`)
                 await axios.post(
