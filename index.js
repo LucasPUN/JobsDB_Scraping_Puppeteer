@@ -122,7 +122,7 @@ async function scrapeJobs() {
                 NodeJS: nodeJsCount,
                 MySQL: mySqlCount,
                 NoSQL: noSqlCount,
-                Date: currentDate
+                date: currentDate
             };
             // console.log(`Java count: ${javaCount}`);
             // console.log(`JavaScript count: ${javaScriptCount}`);
