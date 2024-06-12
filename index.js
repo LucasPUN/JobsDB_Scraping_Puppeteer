@@ -18,6 +18,20 @@ async function scrapeJobs() {
     for (const salaryRange of salaryRanges) {
         let currentPage = 1;
         let totalPages;
+        let javaCount = 0;
+        let pythonCount = 0;
+        let javaScriptCount = 0;
+        let typeScriptCount = 0;
+        let reactJsCount = 0;
+        let vueJsCount = 0;
+        let springCount = 0;
+        let nodeJsCount = 0;
+        let mySqlCount = 0;
+        let noSqlCount = 0;
+
+
+        let jobCount = 0;
+        let countItem;
 
         do {
             const url = `https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=1&page=${currentPage}&salaryrange=${salaryRange}&salarytype=monthly&sortmode=ListedDate`;
@@ -49,9 +63,7 @@ async function scrapeJobs() {
             const jobCards = await page.$$('[data-card-type="JobCard"]');
             const combinedData = [];
 
-            let javaCount = 0;
-            let javaScriptCount = 0;
-            let reactJsCount = 0;
+
 
             for (const jobCard of jobCards) {
                 const jobTitleElement = await jobCard.$('[data-automation="jobTitle"]');
@@ -76,8 +88,15 @@ async function scrapeJobs() {
 
                 // 统计关键字出现次数
                 if (jobDescription.includes('java')) javaCount++;
+                if (jobDescription.includes('python')) pythonCount++;
                 if (jobDescription.includes('javascript')) javaScriptCount++;
+                if (jobDescription.includes('typescript')) typeScriptCount++;
                 if (jobDescription.includes('reactjs')) reactJsCount++;
+                if (jobDescription.includes('vuejs')) vueJsCount++;
+                if (jobDescription.includes('spring')) springCount++;
+                if (jobDescription.includes('nodejs')) nodeJsCount++;
+                if (jobDescription.includes('mysql')) mySqlCount++;
+                if (jobDescription.includes('nosql')) noSqlCount++;
 
                 const combinedItem = {
                     date: currentDate,
@@ -88,33 +107,26 @@ async function scrapeJobs() {
                 combinedData.push(combinedItem);
             }
 
-            const countItem = {
-                salaryRange: salaryRange,
-                total: combinedData.length,
-                JAVA: javaCount,
-                JavaScript: javaScriptCount,
-                ReactJS: reactJsCount,
-                date: currentDate
-            };
-            console.log(`Java count: ${javaCount}`);
-            console.log(`JavaScript count: ${javaScriptCount}`);
-            console.log(`ReactJS count: ${reactJsCount}`);
+            jobCount = jobCount + combinedData.length;
 
-            try {
-                console.log(`Calling count API `)
-                await axios.post(
-                    `${baseUrl}/v1/job-count`,
-                    JSON.stringify(countItem),
-                    {
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    }
-                );
-                console.log(`Successfully added count`);
-            } catch (err) {
-                console.error(err);
-            }
+            countItem = {
+                SalaryRange: salaryRange,
+                Total: jobCount,
+                Java: javaCount,
+                Python: pythonCount,
+                JavaScript: javaScriptCount,
+                TypeScript: typeScriptCount,
+                ReactJS: reactJsCount,
+                VueJs: vueJsCount,
+                Spring: springCount,
+                NodeJS: nodeJsCount,
+                MySQL: mySqlCount,
+                NoSQL: noSqlCount,
+                Date: currentDate
+            };
+            // console.log(`Java count: ${javaCount}`);
+            // console.log(`JavaScript count: ${javaScriptCount}`);
+            // console.log(`ReactJS count: ${reactJsCount}`);
 
             try {
                 console.log(`Calling API ${salaryRange}-page-${currentPage}....`)
@@ -133,6 +145,23 @@ async function scrapeJobs() {
             }
             currentPage++;
         } while (currentPage <= totalPages)
+
+        try {
+            console.log(`Calling count API `)
+            await axios.post(
+                `${baseUrl}/v1/job-count`,
+                JSON.stringify(countItem),
+                {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            console.log(`Successfully added count`);
+        } catch (err) {
+            console.error(err);
+        }
+
     }
 
     await browser.close();
