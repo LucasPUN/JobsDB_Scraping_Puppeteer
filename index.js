@@ -29,7 +29,6 @@ app.post("/v1/job-count", (req, res) => {
 async function scrapeJobs() {
     const browser = await puppeteer.launch({
         headless: true, // 部署时设置为 true
-        executablePath: '/path/to/chrome',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
