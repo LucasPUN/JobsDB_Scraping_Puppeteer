@@ -169,7 +169,7 @@ setInterval(() => {
 }, 10000);
 
 // 使用cron调度任务，每天中午12:00运行
-cron.schedule("09 17 * * *", () => {
+cron.schedule("11 30 * * *", () => {
     console.log("在每天中午12点运行爬虫任务");
     scrapeJobs();
 });
