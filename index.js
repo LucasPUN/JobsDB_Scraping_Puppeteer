@@ -5,6 +5,8 @@ import cron from "node-cron";
 
 const baseUrl = "https://jobsdb-scraping-nodejs.onrender.com";
 
+const port = process.env.PORT || 3001;
+
 async function scrapeJobs() {
     const browser = await puppeteer.launch({
         headless: false,
