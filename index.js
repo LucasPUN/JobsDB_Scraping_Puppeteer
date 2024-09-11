@@ -202,10 +202,16 @@ setInterval(() => {
 }, 60000);
 
 // Schedule the scraping task daily at 12:00 PM
-cron.schedule("50 12 * * *", () => {
-    console.log("Running scraping task at 12:00 PM daily");
-    scrapeJobs();
-});
+// cron.schedule("51 12 * * *", () => {
+//     console.log("Running scraping task at 12:00 PM daily");
+//     scrapeJobs();
+// });
+
+setInterval(async () => {
+    console.log("Running scraping task");
+    await scrapeJobs();
+}, 24 * 60 * 60 * 1000); // 24 hours
+
 
 // Start the Express server
 app.listen(port, () => {
