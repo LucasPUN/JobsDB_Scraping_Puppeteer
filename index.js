@@ -1,14 +1,31 @@
+// Use import statements as required in ES module syntax
+import express from "express";
 import puppeteer from "puppeteer";
-import * as fs from "node:fs";
 import axios from "axios";
 import cron from "node-cron";
 
-const baseUrl = "https://jobsdb-scraping-nodejs.onrender.com";
-
-const express = require('express')
-const app = express()
+// Initialize the Express application
+const app = express();
 const port = process.env.PORT || 4000;
+const baseUrl = `http://localhost:${port}`;
 
+app.use(express.json()); // Middleware to handle JSON requests
+
+// Endpoint to receive job details
+app.post("/v1/job-detail-list", (req, res) => {
+    const jobDetails = req.body;
+    console.log("Received job details:", jobDetails); // Handle job details here (e.g., save to database)
+    res.status(200).send("Job details received");
+});
+
+// Endpoint to receive job counts
+app.post("/v1/job-count", (req, res) => {
+    const jobCount = req.body;
+    console.log("Received job count:", jobCount); // Handle job count here (e.g., save to database)
+    res.status(200).send("Job count received");
+});
+
+// Function to start the Puppeteer scraper
 async function scrapeJobs() {
     const browser = await puppeteer.launch({
         headless: false,
@@ -17,7 +34,6 @@ async function scrapeJobs() {
 
     const page = await browser.newPage();
     const salaryRanges = ["17000-20000", "20000-25000"];
-    // const salaryRanges = ["0-11000", "11000-14000", "14000-17000", "17000-20000", "20000-25000", "25000-30000", "30000-35000", "35000-40000", "40000-50000", "50000-60000", "60000-80000", "80000-120000", "120000-"];
     const currentDate = new Date().toISOString().split("T")[0];
 
     for (const salaryRange of salaryRanges) {
@@ -42,8 +58,11 @@ async function scrapeJobs() {
 
             await page.goto(url);
             await page.waitForSelector('[data-card-type="JobCard"]');
+
             totalPages = await page.evaluate(() => {
-                const totalJobsCount = document.querySelector('[data-automation="totalJobsCount"]').innerText;
+                const totalJobsCount = document.querySelector(
+                    '[data-automation="totalJobsCount"]'
+                ).innerText;
                 return Math.ceil(Number(totalJobsCount) / 32);
             });
 
@@ -68,13 +87,17 @@ async function scrapeJobs() {
             const combinedData = [];
 
             for (const jobCard of jobCards) {
-                const jobTitleElement = await jobCard.$('[data-automation="jobTitle"]');
+                const jobTitleElement = await jobCard.$(
+                    '[data-automation="jobTitle"]'
+                );
                 await jobTitleElement.click();
 
                 await page.waitForSelector('[data-automation="jobAdDetails"]');
 
                 const detailData = await page.evaluate(() => {
-                    const jobDetail = document.querySelectorAll('[data-automation="jobAdDetails"]');
+                    const jobDetail = document.querySelectorAll(
+                        '[data-automation="jobAdDetails"]'
+                    );
                     const jobDetailData = [];
                     const data = {};
                     jobDetail.forEach((element) => {
@@ -86,9 +109,12 @@ async function scrapeJobs() {
                     return jobDetailData;
                 });
 
-                const jobDescription = detailData[0]?.["jobAdDetails"].toLowerCase().replace(/\s+/g, "");
+                const jobDescription = detailData[0]
+                    ?.["jobAdDetails"]
+                    .toLowerCase()
+                    .replace(/\s+/g, "");
 
-                // 统计关键字出现次数
+                // Count occurrences of keywords
                 if (jobDescription.includes("java")) javaCount++;
                 if (jobDescription.includes("python")) pythonCount++;
                 if (jobDescription.includes("javascript")) javaScriptCount++;
@@ -126,22 +152,17 @@ async function scrapeJobs() {
                 NoSQL: noSqlCount,
                 date: currentDate,
             };
-            // console.log(`Java count: ${javaCount}`);
-            // console.log(`JavaScript count: ${javaScriptCount}`);
-            // console.log(`ReactJS count: ${reactJsCount}`);
 
             try {
                 console.log(`Calling API ${salaryRange}-page-${currentPage}....`);
-                await axios.post(
-                    `${baseUrl}/v1/job-detail-list`,
-                    JSON.stringify(combinedData),
-                    {
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                    }
+                await axios.post(`${baseUrl}/v1/job-detail-list`, combinedData, {
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                });
+                console.log(
+                    `Successfully added ${salaryRange}-page-${currentPage} to server`
                 );
-                console.log(`Successfully added ${salaryRange}-page-${currentPage} to server`);
             } catch (err) {
                 console.error(err);
             }
@@ -149,16 +170,12 @@ async function scrapeJobs() {
         } while (currentPage <= totalPages);
 
         try {
-            console.log(`Calling count API `);
-            await axios.post(
-                `${baseUrl}/v1/job-count`,
-                JSON.stringify(countItem),
-                {
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
+            console.log(`Calling count API`);
+            await axios.post(`${baseUrl}/v1/job-count`, countItem, {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
             console.log(`Successfully added count`);
         } catch (err) {
             console.error(err);
@@ -168,12 +185,18 @@ async function scrapeJobs() {
     await browser.close();
 }
 
+// Keep script active with a regular interval
 setInterval(() => {
-    console.log("脚本正在运行，保持活跃状态...");
+    console.log("Script is running to stay active...");
 }, 10000);
 
-// 使用cron调度任务，每天中午12:00运行
-cron.schedule("50 11 * * *", () => {
-    console.log("在每天中午12点运行爬虫任务");
+// Schedule the scraping task daily at 12:00 PM
+cron.schedule("25 12 * * *", () => {
+    console.log("Running scraping task at 12:00 PM daily");
     scrapeJobs();
+});
+
+// Start the Express server
+app.listen(port, () => {
+    console.log(`Server is running on http://localhost:${port}`);
 });
