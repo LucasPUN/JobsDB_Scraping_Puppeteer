@@ -28,7 +28,18 @@ app.post("/v1/job-count", (req, res) => {
 // Function to start the Puppeteer scraper
 async function scrapeJobs() {
     const browser = await puppeteer.launch({
-        headless: false,
+        headless: true, // 部署时设置为 true
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--disable-gpu',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process', // Render 环境推荐的配置
+            '--disable-extensions'
+        ],
         defaultViewport: null,
     });
 
@@ -188,10 +199,10 @@ async function scrapeJobs() {
 // Keep script active with a regular interval
 setInterval(() => {
     console.log("Script is running to stay active...");
-}, 10000);
+}, 60000);
 
 // Schedule the scraping task daily at 12:00 PM
-cron.schedule("22 12 * * *", () => {
+cron.schedule("28 12 * * *", () => {
     console.log("Running scraping task at 12:00 PM daily");
     scrapeJobs();
 });
