@@ -199,6 +199,7 @@ async function scrapeJobs() {
 // Keep script active with a regular interval
 setInterval(() => {
     console.log("Script is running to stay active...");
+
 }, 60000);
 
 // Schedule the scraping task daily at 12:00 PM
@@ -206,7 +207,7 @@ setInterval(() => {
 //     console.log("Running scraping task at 12:00 PM daily");
 //     scrapeJobs();
 // });
-
+await scrapeJobs();
 setInterval(async () => {
     console.log("Running scraping task");
     await scrapeJobs();
