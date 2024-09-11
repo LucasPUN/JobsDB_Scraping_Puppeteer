@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import axios from "axios";
 import cron from "node-cron";
 
-const baseUrl = "http://localhost:3000";
+const baseUrl = "https://jobsdb-scraping-nodejs.onrender.com";
 
 async function scrapeJobs() {
     const browser = await puppeteer.launch({
@@ -169,7 +169,7 @@ setInterval(() => {
 }, 10000);
 
 // 使用cron调度任务，每天中午12:00运行
-cron.schedule("11 30 * * *", () => {
+cron.schedule("11 35 * * *", () => {
     console.log("在每天中午12点运行爬虫任务");
     scrapeJobs();
 });
