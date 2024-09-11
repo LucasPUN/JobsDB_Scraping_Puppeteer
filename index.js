@@ -191,7 +191,7 @@ setInterval(() => {
 }, 10000);
 
 // Schedule the scraping task daily at 12:00 PM
-cron.schedule("25 12 * * *", () => {
+cron.schedule("22 12 * * *", () => {
     console.log("Running scraping task at 12:00 PM daily");
     scrapeJobs();
 });
