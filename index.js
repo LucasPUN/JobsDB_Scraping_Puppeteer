@@ -29,6 +29,7 @@ async function scrapeJobs() {
         // Launch Puppeteer
         browser = await puppeteer.launch({
             headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox'],
             defaultViewport: null,
             protocolTimeout: 120000, // 将超时时间设置为 120 秒 (120,000 毫秒)
         });
