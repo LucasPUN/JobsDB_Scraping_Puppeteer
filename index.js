@@ -28,8 +28,8 @@ app.post("/v1/job-count", (req, res) => {
 // Function to start the Puppeteer scraper
 async function scrapeJobs() {
     const browser = await puppeteer.launch({
+        executablePath: '/opt/render/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome',
         headless: true,
-        executablePath: '/opt/render/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome', // 确保路径正确
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
