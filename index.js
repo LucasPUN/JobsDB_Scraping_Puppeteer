@@ -25,7 +25,7 @@ app.post("/v1/job-count", (req, res) => {
 
 async function scrapeJobs() {
     const browser = await puppeteer.launch({
-        headless: true, // Set to false to enable GUI mode
+        headless: true,
         args: [
             "--disable-setuid-sandbox",
             "--no-sandbox",
@@ -33,7 +33,7 @@ async function scrapeJobs() {
             "--no-zygote",
             "--single-process"
         ],
-        defaultViewport: null,
+        protocolTimeout: 120000, // 将超时时间设置为 60 秒 (60,000 毫秒)
     });
 
     const page = await browser.newPage();
