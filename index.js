@@ -28,7 +28,7 @@ app.post("/v1/job-count", (req, res) => {
 // Function to start the Puppeteer scraper
 async function scrapeJobs() {
     const browser = await puppeteer.launch({
-        executablePath: '/opt/render/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome',
+        executablePath: '/opt/render/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome-linux64/chrome',
         headless: true,
         args: [
             '--no-sandbox',
