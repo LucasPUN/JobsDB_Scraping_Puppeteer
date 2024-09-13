@@ -40,7 +40,7 @@ async function scrapeJobs() {
                 width: 1280, // 设置宽度
                 height: 800, // 设置高度
             },
-            protocolTimeout: 60000, // 设置超时为 120 秒
+            protocolTimeout: 600000, // 设置超时为 120 秒
         });
 
         const page = await browser.newPage();
