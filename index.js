@@ -101,11 +101,11 @@ async function scrapeJobs() {
                         );
                         await jobTitleElement.click();
 
-                        await page.waitForSelector('[data-automation="jobAdDetails"]', { visible: true, timeout: 60000 });
+                        await page.waitForSelector('[data-automation="jobAdDetails"]', { visible: true, timeout: 120000 });
 
                         const detailData = await page.evaluate(() => {
                             const jobDetail = document.querySelectorAll(
-                                '[data-automation="jobAdDetails"]'
+                                '[data-automation="jobAdDetails"]', { visible: true, timeout: 120000 }
                             );
                             const jobDetailData = [];
                             const data = {};
