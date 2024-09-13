@@ -28,7 +28,8 @@ app.post("/v1/job-count", (req, res) => {
 // Function to start the Puppeteer scraper
 async function scrapeJobs() {
     const browser = await puppeteer.launch({
-        headless: true, // 部署时设置为 true
+        headless: true,
+        executablePath: '/opt/render/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome', // 确保路径正确
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -37,11 +38,12 @@ async function scrapeJobs() {
             '--disable-gpu',
             '--no-first-run',
             '--no-zygote',
-            '--single-process', // Render 环境推荐的配置
+            '--single-process',
             '--disable-extensions'
         ],
         defaultViewport: null,
     });
+
 
     const page = await browser.newPage();
     const salaryRanges = ["17000-20000", "20000-25000"];
