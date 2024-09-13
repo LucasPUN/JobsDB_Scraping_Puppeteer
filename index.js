@@ -1,34 +1,28 @@
-// Use import statements as required in ES module syntax
 import express from "express";
 import puppeteer from "puppeteer";
 import axios from "axios";
-import cron from "node-cron";
 import dotenv from 'dotenv';
 
+dotenv.config();
 
-// Initialize the Express application
 const app = express();
 const port = process.env.PORT || 4000;
 const baseUrl = `http://localhost:${port}`;
-dotenv.config();
 
-app.use(express.json()); // Middleware to handle JSON requests
+app.use(express.json());
 
-// Endpoint to receive job details
 app.post("/v1/job-detail-list", (req, res) => {
     const jobDetails = req.body;
-    console.log("Received job details:", jobDetails); // Handle job details here (e.g., save to database)
+    console.log("Received job details:", jobDetails);
     res.status(200).send("Job details received");
 });
 
-// Endpoint to receive job counts
 app.post("/v1/job-count", (req, res) => {
     const jobCount = req.body;
-    console.log("Received job count:", jobCount); // Handle job count here (e.g., save to database)
+    console.log("Received job count:", jobCount);
     res.status(200).send("Job count received");
 });
 
-// Function to start the Puppeteer scraper
 async function scrapeJobs() {
     const browser = await puppeteer.launch({
         args: [
@@ -37,10 +31,9 @@ async function scrapeJobs() {
             "--single-process",
             "--no-zygote",
         ],
-        executablePath:
-            process.env.NODE_ENV === "production"
-                ? process.env.PUPPETEER_EXECUTABLE_PATH
-                : puppeteer.executablePath(),
+        executablePath: process.env.NODE_ENV === "production"
+            ? process.env.PUPPETEER_EXECUTABLE_PATH
+            : puppeteer.executablePath(),
     });
 
     const page = await browser.newPage();
@@ -67,117 +60,119 @@ async function scrapeJobs() {
         do {
             const url = `https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=1&page=${currentPage}&salaryrange=${salaryRange}&salarytype=monthly&sortmode=ListedDate`;
 
-            await page.goto(url);
-            await page.waitForSelector('[data-card-type="JobCard"]');
-
-            totalPages = await page.evaluate(() => {
-                const totalJobsCount = document.querySelector(
-                    '[data-automation="totalJobsCount"]'
-                ).innerText;
-                return Math.ceil(Number(totalJobsCount) / 32);
-            });
-
-            const jobCardData = await page.evaluate(() => {
-                const jobCards = document.querySelectorAll('[data-card-type="JobCard"]');
-                const jobData = [];
-                jobCards.forEach((card) => {
-                    const dataElements = card.querySelectorAll('[data-automation]');
-                    const data = {};
-                    data["id"] = card.dataset.jobId;
-                    dataElements.forEach((element) => {
-                        const key = element.getAttribute("data-automation");
-                        const value = element.innerText.trim();
-                        data[key] = value;
-                    });
-                    jobData.push(data);
-                });
-                return jobData;
-            });
-
-            const jobCards = await page.$$('[data-card-type="JobCard"]');
-            const combinedData = [];
-
-            for (const jobCard of jobCards) {
-                const jobTitleElement = await jobCard.$(
-                    '[data-automation="jobTitle"]'
-                );
-                await jobTitleElement.click();
-
-                await page.waitForSelector('[data-automation="jobAdDetails"]');
-
-                const detailData = await page.evaluate(() => {
-                    const jobDetail = document.querySelectorAll(
-                        '[data-automation="jobAdDetails"]'
-                    );
-                    const jobDetailData = [];
-                    const data = {};
-                    jobDetail.forEach((element) => {
-                        const key = element.getAttribute("data-automation");
-                        const value = element.innerText.trim();
-                        data[key] = value;
-                    });
-                    jobDetailData.push(data);
-                    return jobDetailData;
-                });
-
-                const jobDescription = detailData[0]
-                    ?.["jobAdDetails"]
-                    .toLowerCase()
-                    .replace(/\s+/g, "");
-
-                // Count occurrences of keywords
-                if (jobDescription.includes("java")) javaCount++;
-                if (jobDescription.includes("python")) pythonCount++;
-                if (jobDescription.includes("javascript")) javaScriptCount++;
-                if (jobDescription.includes("typescript")) typeScriptCount++;
-                if (jobDescription.includes("reactjs")) reactJsCount++;
-                if (jobDescription.includes("vuejs")) vueJsCount++;
-                if (jobDescription.includes("spring")) springCount++;
-                if (jobDescription.includes("nodejs")) nodeJsCount++;
-                if (jobDescription.includes("mysql")) mySqlCount++;
-                if (jobDescription.includes("nosql")) noSqlCount++;
-
-                const combinedItem = {
-                    date: currentDate,
-                    salaryRange: salaryRange,
-                    ...jobCardData.shift(),
-                    ...detailData.shift(),
-                };
-                combinedData.push(combinedItem);
-            }
-
-            jobCount = jobCount + combinedData.length;
-
-            countItem = {
-                SalaryRange: salaryRange,
-                Total: jobCount,
-                Java: javaCount,
-                Python: pythonCount,
-                JavaScript: javaScriptCount,
-                TypeScript: typeScriptCount,
-                ReactJS: reactJsCount,
-                VueJs: vueJsCount,
-                Spring: springCount,
-                NodeJS: nodeJsCount,
-                MySQL: mySqlCount,
-                NoSQL: noSqlCount,
-                date: currentDate,
-            };
-
             try {
-                console.log(`Calling API ${salaryRange}-page-${currentPage}....`);
-                await axios.post(`${baseUrl}/v1/job-detail-list`, combinedData, {
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
+                await page.goto(url, { timeout: 60000 });
+                await page.waitForSelector('[data-card-type="JobCard"]', { timeout: 60000 });
+
+                totalPages = await page.evaluate(() => {
+                    const totalJobsCount = document.querySelector(
+                        '[data-automation="totalJobsCount"]'
+                    ).innerText;
+                    return Math.ceil(Number(totalJobsCount) / 32);
                 });
-                console.log(
-                    `Successfully added ${salaryRange}-page-${currentPage} to server`
-                );
-            } catch (err) {
-                console.error(err);
+
+                const jobCardData = await page.evaluate(() => {
+                    const jobCards = document.querySelectorAll('[data-card-type="JobCard"]');
+                    const jobData = [];
+                    jobCards.forEach((card) => {
+                        const dataElements = card.querySelectorAll('[data-automation]');
+                        const data = {};
+                        data["id"] = card.dataset.jobId;
+                        dataElements.forEach((element) => {
+                            const key = element.getAttribute("data-automation");
+                            const value = element.innerText.trim();
+                            data[key] = value;
+                        });
+                        jobData.push(data);
+                    });
+                    return jobData;
+                });
+
+                const jobCards = await page.$$('[data-card-type="JobCard"]');
+                const combinedData = [];
+
+                for (const jobCard of jobCards) {
+                    const jobTitleElement = await jobCard.$(
+                        '[data-automation="jobTitle"]'
+                    );
+                    await jobTitleElement.click();
+
+                    await page.waitForSelector('[data-automation="jobAdDetails"]');
+
+                    const detailData = await page.evaluate(() => {
+                        const jobDetail = document.querySelectorAll(
+                            '[data-automation="jobAdDetails"]'
+                        );
+                        const jobDetailData = [];
+                        const data = {};
+                        jobDetail.forEach((element) => {
+                            const key = element.getAttribute("data-automation");
+                            const value = element.innerText.trim();
+                            data[key] = value;
+                        });
+                        jobDetailData.push(data);
+                        return jobDetailData;
+                    });
+
+                    const jobDescription = detailData[0]
+                        ?.["jobAdDetails"]
+                        .toLowerCase()
+                        .replace(/\s+/g, "");
+
+                    if (jobDescription.includes("java")) javaCount++;
+                    if (jobDescription.includes("python")) pythonCount++;
+                    if (jobDescription.includes("javascript")) javaScriptCount++;
+                    if (jobDescription.includes("typescript")) typeScriptCount++;
+                    if (jobDescription.includes("reactjs")) reactJsCount++;
+                    if (jobDescription.includes("vuejs")) vueJsCount++;
+                    if (jobDescription.includes("spring")) springCount++;
+                    if (jobDescription.includes("nodejs")) nodeJsCount++;
+                    if (jobDescription.includes("mysql")) mySqlCount++;
+                    if (jobDescription.includes("nosql")) noSqlCount++;
+
+                    const combinedItem = {
+                        date: currentDate,
+                        salaryRange: salaryRange,
+                        ...jobCardData.shift(),
+                        ...detailData.shift(),
+                    };
+                    combinedData.push(combinedItem);
+                }
+
+                jobCount = jobCount + combinedData.length;
+
+                countItem = {
+                    SalaryRange: salaryRange,
+                    Total: jobCount,
+                    Java: javaCount,
+                    Python: pythonCount,
+                    JavaScript: javaScriptCount,
+                    TypeScript: typeScriptCount,
+                    ReactJS: reactJsCount,
+                    VueJs: vueJsCount,
+                    Spring: springCount,
+                    NodeJS: nodeJsCount,
+                    MySQL: mySqlCount,
+                    NoSQL: noSqlCount,
+                    date: currentDate,
+                };
+
+                try {
+                    console.log(`Calling API ${salaryRange}-page-${currentPage}....`);
+                    await axios.post(`${baseUrl}/v1/job-detail-list`, combinedData, {
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                    });
+                    console.log(`Successfully added ${salaryRange}-page-${currentPage} to server`);
+                } catch (err) {
+                    console.error(err);
+                }
+                currentPage++;
+            } catch (error) {
+                console.error(`Error during scraping: ${error}`);
+                break; // Exit the loop if an error occurs
             }
-            currentPage++;
         } while (currentPage <= totalPages);
 
         try {
@@ -196,25 +191,16 @@ async function scrapeJobs() {
     await browser.close();
 }
 
-// Keep script active with a regular interval
 setInterval(() => {
     console.log("Script is running to stay active...");
-
 }, 60000);
 
-// Schedule the scraping task daily at 12:00 PM
-// cron.schedule("51 12 * * *", () => {
-//     console.log("Running scraping task at 12:00 PM daily");
-//     scrapeJobs();
-// });
 await scrapeJobs();
 setInterval(async () => {
     console.log("Running scraping task");
     await scrapeJobs();
 }, 24 * 60 * 60 * 1000); // 24 hours
 
-
-// Start the Express server
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
 });
