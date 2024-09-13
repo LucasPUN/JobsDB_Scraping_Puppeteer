@@ -26,13 +26,13 @@ app.post("/v1/job-count", (req, res) => {
 async function scrapeJobs() {
     const browser = await puppeteer.launch({
         headless: true, // Set to false to enable GUI mode
-        // args: [
-        //     "--disable-setuid-sandbox",
-        //     "--no-sandbox",
-        //     "--disable-dev-shm-usage",
-        //     "--no-zygote",
-        //     "--single-process"
-        // ],
+        args: [
+            "--disable-setuid-sandbox",
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--no-zygote",
+            "--single-process"
+        ],
         defaultViewport: null,
     });
 
