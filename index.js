@@ -28,10 +28,10 @@ async function scrapeJobs() {
     try {
         // Launch Puppeteer
         browser = await puppeteer.launch({
-            headless: true,
+            headless: true, // 在本地调试时设为 false
             args: ['--no-sandbox', '--disable-setuid-sandbox'],
             defaultViewport: null,
-            protocolTimeout: 120000, // 将超时时间设置为 120 秒 (120,000 毫秒)
+            protocolTimeout: 120000, // 设置超时为 120 秒
         });
 
         const page = await browser.newPage();
@@ -95,7 +95,7 @@ async function scrapeJobs() {
                         );
                         await jobTitleElement.click();
 
-                        await page.waitForSelector('[data-automation="jobAdDetails"]');
+                        await page.waitForSelector('[data-automation="jobAdDetails"]', { visible: true, timeout: 60000 });
 
                         const detailData = await page.evaluate(() => {
                             const jobDetail = document.querySelectorAll(
