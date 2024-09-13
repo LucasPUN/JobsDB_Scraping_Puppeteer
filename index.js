@@ -7,7 +7,7 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 4000;
-const baseUrl = `http://localhost:${port}`;
+const baseUrl = `https://jobsdb-scraping-nodejs.onrender.com`;
 
 app.use(express.json());
 
