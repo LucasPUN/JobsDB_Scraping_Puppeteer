@@ -29,7 +29,13 @@ async function scrapeJobs() {
         // Launch Puppeteer
         browser = await puppeteer.launch({
             headless: true, // 在本地调试时设为 false
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--disable-gpu',
+            ],
             defaultViewport: null,
             protocolTimeout: 120000, // 设置超时为 120 秒
         });
@@ -59,8 +65,8 @@ async function scrapeJobs() {
                 const url = `https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=1&page=${currentPage}&salaryrange=${salaryRange}&salarytype=monthly&sortmode=ListedDate`;
 
                 try {
-                    await page.goto(url, { timeout: 60000 });
-                    await page.waitForSelector('[data-card-type="JobCard"]', { timeout: 60000 });
+                    await page.goto(url, { timeout: 180000 });
+                    await page.waitForSelector('[data-card-type="JobCard"]', { timeout: 180000 });
 
                     totalPages = await page.evaluate(() => {
                         const totalJobsCount = document.querySelector(
