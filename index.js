@@ -3,6 +3,7 @@ import express from "express";
 import puppeteer from "puppeteer";
 import axios from "axios";
 import cron from "node-cron";
+require("dotenv").config();
 
 // Initialize the Express application
 const app = express();
@@ -28,18 +29,16 @@ app.post("/v1/job-count", (req, res) => {
 // Function to start the Puppeteer scraper
 async function scrapeJobs() {
     const browser = await puppeteer.launch({
-        headless: true,
         args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--disable-gpu',
-            '--no-first-run',
-            '--no-zygote',
-            '--single-process',
-            '--disable-extensions'
+            "--disable-setuid-sandbox",
+            "--no-sandbox",
+            "--single-process",
+            "--no-zygote",
         ],
+        executablePath:
+            process.env.NODE_ENV === "production"
+                ? process.env.PUPPETEER_EXECUTABLE_PATH
+                : puppeteer.executablePath(),
     });
 
     const page = await browser.newPage();
