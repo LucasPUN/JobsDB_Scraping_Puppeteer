@@ -3,12 +3,14 @@ import express from "express";
 import puppeteer from "puppeteer";
 import axios from "axios";
 import cron from "node-cron";
-require("dotenv").config();
+import dotenv from 'dotenv';
+
 
 // Initialize the Express application
 const app = express();
 const port = process.env.PORT || 4000;
 const baseUrl = `http://localhost:${port}`;
+dotenv.config();
 
 app.use(express.json()); // Middleware to handle JSON requests
 
