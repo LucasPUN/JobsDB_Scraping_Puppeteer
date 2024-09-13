@@ -36,8 +36,11 @@ async function scrapeJobs() {
                 '--disable-accelerated-2d-canvas',
                 '--disable-gpu',
             ],
-            defaultViewport: null,
-            protocolTimeout: 120000, // 设置超时为 120 秒
+            defaultViewport: {
+                width: 1280, // 设置宽度
+                height: 800, // 设置高度
+            },
+            protocolTimeout: 60000, // 设置超时为 120 秒
         });
 
         const page = await browser.newPage();
