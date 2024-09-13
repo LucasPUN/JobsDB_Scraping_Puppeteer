@@ -28,7 +28,6 @@ app.post("/v1/job-count", (req, res) => {
 // Function to start the Puppeteer scraper
 async function scrapeJobs() {
     const browser = await puppeteer.launch({
-        executablePath: '/opt/render/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome-linux64/chrome',
         headless: true,
         args: [
             '--no-sandbox',
@@ -41,9 +40,7 @@ async function scrapeJobs() {
             '--single-process',
             '--disable-extensions'
         ],
-        defaultViewport: null,
     });
-
 
     const page = await browser.newPage();
     const salaryRanges = ["17000-20000", "20000-25000"];
