@@ -25,15 +25,15 @@ app.post("/v1/job-count", (req, res) => {
 
 async function scrapeJobs() {
     const browser = await puppeteer.launch({
-        args: [
-            "--disable-setuid-sandbox",
-            "--no-sandbox",
-            "--single-process",
-            "--no-zygote",
-        ],
-        executablePath: process.env.NODE_ENV === "production"
-            ? process.env.PUPPETEER_EXECUTABLE_PATH
-            : puppeteer.executablePath(),
+        headless: false, // Set to false to enable GUI mode
+        // args: [
+        //     "--disable-setuid-sandbox",
+        //     "--no-sandbox",
+        //     "--disable-dev-shm-usage",
+        //     "--no-zygote",
+        //     "--single-process"
+        // ],
+        defaultViewport: null,
     });
 
     const page = await browser.newPage();
