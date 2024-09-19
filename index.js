@@ -23,45 +23,29 @@ app.post("/v1/job-count", (req, res) => {
     res.status(200).send("Job count received");
 });
 
-async function createBrowser() {
-    return puppeteer.launch({
-        headless: true,
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--disable-gpu',
-            '--remote-debugging-port=9222'
-        ],
-        defaultViewport: {
-            width: 1280,
-            height: 800,
-        },
-        protocolTimeout: 1200000, // 设置超时为 20 分钟
-    });
-}
-
 async function scrapeJobs() {
     let browser;
     try {
-        browser = await createBrowser();
+        // Launch Puppeteer
+        browser = await puppeteer.launch({
+            headless: true, // 在本地调试时设为 false
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--disable-gpu',
+            ],
+            defaultViewport: {
+                width: 1280, // 设置宽度
+                height: 800, // 设置高度
+            },
+            protocolTimeout: 1200000, // 设置超时为 120 秒
+        });
+
         const page = await browser.newPage();
         const salaryRanges = ["0-11000", "11000-14000", "14000-17000", "17000-20000", "20000-25000", "25000-30000", "30000-35000", "35000-40000", "40000-50000", "50000-60000", "60000-80000", "80000-120000", "120000-"];
         const currentDate = new Date().toISOString().split("T")[0];
-
-        const fetchWithRetries = async (fn, retries = 3) => {
-            try {
-                return await fn();
-            } catch (error) {
-                if (retries > 0) {
-                    console.warn(`Retrying due to error: ${error}`);
-                    return fetchWithRetries(fn, retries - 1);
-                } else {
-                    throw error;
-                }
-            }
-        };
 
         for (const salaryRange of salaryRanges) {
             let currentPage = 1;
@@ -84,11 +68,13 @@ async function scrapeJobs() {
                 const url = `https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=1&page=${currentPage}&salaryrange=${salaryRange}&salarytype=monthly&sortmode=ListedDate`;
 
                 try {
-                    await fetchWithRetries(() => page.goto(url, { timeout: 1200000 }));
-                    await fetchWithRetries(() => page.waitForSelector('[data-card-type="JobCard"]', { timeout: 1200000 }));
+                    await page.goto(url, { timeout: 1200000 });
+                    await page.waitForSelector('[data-card-type="JobCard"]', { timeout: 1200000 });
 
                     totalPages = await page.evaluate(() => {
-                        const totalJobsCount = document.querySelector('[data-automation="totalJobsCount"]').innerText;
+                        const totalJobsCount = document.querySelector(
+                            '[data-automation="totalJobsCount"]'
+                        ).innerText;
                         return Math.ceil(Number(totalJobsCount) / 32);
                     });
 
@@ -113,13 +99,17 @@ async function scrapeJobs() {
                     const combinedData = [];
 
                     for (const jobCard of jobCards) {
-                        const jobTitleElement = await jobCard.$('[data-automation="jobTitle"]');
+                        const jobTitleElement = await jobCard.$(
+                            '[data-automation="jobTitle"]'
+                        );
                         await jobTitleElement.click();
 
-                        await fetchWithRetries(() => page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 1200000 }));
+                        await page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 1200000 });
 
                         const detailData = await page.evaluate(() => {
-                            const jobDetail = document.querySelectorAll('[data-automation="jobAdDetails"]');
+                            const jobDetail = document.querySelectorAll(
+                                '[data-automation="jobAdDetails"]', { timeout: 1200000 }
+                            );
                             const jobDetailData = [];
                             const data = {};
                             jobDetail.forEach((element) => {
@@ -131,7 +121,10 @@ async function scrapeJobs() {
                             return jobDetailData;
                         });
 
-                        const jobDescription = detailData[0]?.["jobAdDetails"].toLowerCase().replace(/\s+/g, "");
+                        const jobDescription = detailData[0]
+                            ?.["jobAdDetails"]
+                            .toLowerCase()
+                            .replace(/\s+/g, "");
 
                         if (jobDescription.includes("java")) javaCount++;
                         if (jobDescription.includes("python")) pythonCount++;
@@ -180,14 +173,12 @@ async function scrapeJobs() {
                         });
                         console.log(`Successfully added ${salaryRange}-page-${currentPage} to server`);
                     } catch (err) {
-                        console.error(`Error calling detail list API: ${err}`);
+                        console.error(err);
                     }
                     currentPage++;
                 } catch (error) {
                     console.error(`Error during scraping: ${error}`);
-                    if (browser) await browser.close();
-                    browser = await createBrowser();
-                    break; // Restart the loop for the current salaryRange
+                    break; // Exit the loop if an error occurs
                 }
             } while (currentPage <= totalPages);
 
@@ -200,7 +191,7 @@ async function scrapeJobs() {
                 });
                 console.log(`Successfully added count`);
             } catch (err) {
-                console.error(`Error calling count API: ${err}`);
+                console.error(err);
             }
         }
     } catch (err) {
@@ -218,19 +209,15 @@ app.listen(port, () => {
 });
 
 // Run the scraping task once upon server startup
-scrapeJobs().catch(error => console.error(`Error running initial scraping task: ${error}`));
+await scrapeJobs();
 
 // Set a daily interval for the scraping task
 setInterval(async () => {
     console.log("Running scraping task");
-    try {
-        await scrapeJobs();
-    } catch (error) {
-        console.error(`Error during scheduled scraping task: ${error}`);
-    }
+    await scrapeJobs();
 }, 24 * 60 * 60 * 1000); // 24 hours
 
 // Keep the server active
 setInterval(() => {
     console.log("Script is running to stay active...");
-}, 600000); // 10 minutes
+}, 60000);
