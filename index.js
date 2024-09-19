@@ -108,8 +108,7 @@ async function scrapeJobs() {
                             const data = {};
                             jobDetail.forEach((element) => {
                                 const key = element.getAttribute("data-automation");
-                                const value = element.innerText.trim();
-                                data[key] = value;
+                                data[key] = element.innerText.trim();
                             });
                             jobDetailData.push(data);
                             return jobDetailData;
