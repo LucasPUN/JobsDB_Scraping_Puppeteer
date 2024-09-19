@@ -1,3 +1,28 @@
+import express from "express";
+import puppeteer from "puppeteer";
+import axios from "axios";
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const app = express();
+const port = process.env.PORT || 4000;
+const baseUrl = `https://jobsdb-scraping-nodejs.onrender.com`;
+
+app.use(express.json());
+
+app.post("/v1/job-detail-list", (req, res) => {
+    const jobDetails = req.body;
+    console.log("Received job details:", jobDetails);
+    res.status(200).send("Job details received");
+});
+
+app.post("/v1/job-count", (req, res) => {
+    const jobCount = req.body;
+    console.log("Received job count:", jobCount);
+    res.status(200).send("Job count received");
+});
+
 async function scrapeJobs() {
     let browser;
     try {
