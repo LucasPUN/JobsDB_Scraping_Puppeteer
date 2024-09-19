@@ -26,23 +26,27 @@ app.post("/v1/job-count", (req, res) => {
 async function scrapeJobs() {
     let browser;
     try {
+        // Launch Puppeteer
         browser = await puppeteer.launch({
-            headless: true,
+            headless: true, // 在本地调试时设为 false
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-accelerated-2d-canvas',
                 '--disable-gpu',
+                '--remote-debugging-port=9222'
             ],
             defaultViewport: {
                 width: 1280,
                 height: 800,
             },
-            protocolTimeout: 60000, // 增加到 60 秒
+            protocolTimeout: 1200000, // 设置超时为 20 分钟
         });
 
         const page = await browser.newPage();
+        const salaryRanges = ["0-11000", "11000-14000", "14000-17000", "17000-20000", "20000-25000", "25000-30000", "30000-35000", "35000-40000", "40000-50000", "50000-60000", "60000-80000", "80000-120000", "120000-"];
+        const currentDate = new Date().toISOString().split("T")[0];
 
         page.on('framenavigated', frame => {
             if (frame.url() !== url) {
@@ -223,3 +227,4 @@ setInterval(async () => {
 setInterval(() => {
     console.log("脚本正在运行以保持活跃...");
 }, 600000); // 10 分钟
+
