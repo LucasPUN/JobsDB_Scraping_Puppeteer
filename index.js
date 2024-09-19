@@ -23,28 +23,30 @@ app.post("/v1/job-count", (req, res) => {
     res.status(200).send("Job count received");
 });
 
+async function createBrowser() {
+    return puppeteer.launch({
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--disable-gpu',
+            '--remote-debugging-port=9222'
+        ],
+        defaultViewport: {
+            width: 1280,
+            height: 800,
+        },
+        protocolTimeout: 1200000, // 设置超时为 20 分钟
+    });
+}
+
 async function scrapeJobs() {
     let browser;
     try {
-        // Launch Puppeteer
-        browser = await puppeteer.launch({
-            headless: true, // 在本地调试时设为 false
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--disable-gpu',
-                '--remote-debugging-port=9222'
-            ],
-            defaultViewport: {
-                width: 1280,
-                height: 800,
-            },
-            protocolTimeout: 1200000, // 设置超时为 20 分钟
-        });
-
-        let page = await browser.newPage();
+        browser = await createBrowser();
+        const page = await browser.newPage();
         const salaryRanges = ["0-11000", "11000-14000", "14000-17000", "17000-20000", "20000-25000", "25000-30000", "30000-35000", "35000-40000", "40000-50000", "50000-60000", "60000-80000", "80000-120000", "120000-"];
         const currentDate = new Date().toISOString().split("T")[0];
 
@@ -183,25 +185,8 @@ async function scrapeJobs() {
                     currentPage++;
                 } catch (error) {
                     console.error(`Error during scraping: ${error}`);
-                    // Close and restart Puppeteer on error
                     if (browser) await browser.close();
-                    browser = await puppeteer.launch({
-                        headless: true,
-                        args: [
-                            '--no-sandbox',
-                            '--disable-setuid-sandbox',
-                            '--disable-dev-shm-usage',
-                            '--disable-accelerated-2d-canvas',
-                            '--disable-gpu',
-                            '--remote-debugging-port=9222'
-                        ],
-                        defaultViewport: {
-                            width: 1280,
-                            height: 800,
-                        },
-                        protocolTimeout: 1200000,
-                    });
-                    page = await browser.newPage();
+                    browser = await createBrowser();
                     break; // Restart the loop for the current salaryRange
                 }
             } while (currentPage <= totalPages);
