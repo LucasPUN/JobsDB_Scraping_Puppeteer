@@ -50,7 +50,7 @@ async function scrapeJobs() {
         try {
             // 每个 salaryRange 都重新启动 Puppeteer 实例
             browser = await puppeteer.launch({
-                headless: true,
+                headless: false,
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
@@ -100,22 +100,33 @@ async function scrapeJobs() {
                         return Math.ceil(Number(totalJobsCount) / 32);
                     });
 
+                    const jobCardData = await page.evaluate(() => {
+                        const jobCards = document.querySelectorAll('[data-card-type="JobCard"]');
+                        const jobData = [];
+                        jobCards.forEach((card) => {
+                            const dataElements = card.querySelectorAll('[data-automation]');
+                            const data = {};
+                            data["id"] = card.dataset.jobId;
+                            dataElements.forEach((element) => {
+                                const key = element.getAttribute("data-automation");
+                                data[key] = element.innerText.trim();
+                            });
+                            jobData.push(data);
+                        });
+                        return jobData;
+                    });
+
                     const jobCards = await page.$$('[data-card-type="JobCard"]');
                     const combinedData = [];
 
                     for (const jobCard of jobCards) {
-                        await fetchWithRetries(async () => {
-                            const jobTitleElement = await jobCard.$(
-                                '[data-automation="jobTitle"]'
-                            );
-                            await jobTitleElement.click();
-                            await page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 1200000 });
-                        });
+                        const jobTitleElement = await jobCard.$('[data-automation="jobTitle"]');
+                        await jobTitleElement.click();
+
+                        await page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 1200000 });
 
                         const detailData = await page.evaluate(() => {
-                            const jobDetail = document.querySelectorAll(
-                                '[data-automation="jobAdDetails"]'
-                            );
+                            const jobDetail = document.querySelectorAll('[data-automation="jobAdDetails"]');
                             const jobDetailData = [];
                             const data = {};
                             jobDetail.forEach((element) => {
@@ -126,10 +137,7 @@ async function scrapeJobs() {
                             return jobDetailData;
                         });
 
-                        const jobDescription = detailData[0]
-                            ?.["jobAdDetails"]
-                            .toLowerCase()
-                            .replace(/\s+/g, "");
+                        const jobDescription = detailData[0]?.["jobAdDetails"].toLowerCase().replace(/\s+/g, "");
 
                         if (jobDescription.includes("java")) jobCounts.javaCount++;
                         if (jobDescription.includes("python")) jobCounts.pythonCount++;
@@ -142,11 +150,13 @@ async function scrapeJobs() {
                         if (jobDescription.includes("mysql")) jobCounts.mySqlCount++;
                         if (jobDescription.includes("nosql")) jobCounts.noSqlCount++;
 
-                        combinedData.push({
+                        const combinedItem = {
                             date: currentDate,
                             salaryRange: salaryRange,
-                            ...detailData.shift(),
-                        });
+                            ...jobCardData.shift(),  // 保留 jobCardData 的 shift
+                            ...detailData.shift(),   // 保留 detailData 的 shift
+                        };
+                        combinedData.push(combinedItem);
                     }
 
                     jobCount += combinedData.length;
