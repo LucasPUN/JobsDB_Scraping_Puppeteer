@@ -1,59 +1,41 @@
-import express from "express";
-import puppeteer from "puppeteer";
-import axios from "axios";
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const app = express();
-const port = process.env.PORT || 4000;
-const baseUrl = `https://jobsdb-scraping-nodejs.onrender.com`;
-
-app.use(express.json());
-
-app.post("/v1/job-detail-list", (req, res) => {
-    const jobDetails = req.body;
-    console.log("Received job details:", jobDetails);
-    res.status(200).send("Job details received");
-});
-
-app.post("/v1/job-count", (req, res) => {
-    const jobCount = req.body;
-    console.log("Received job count:", jobCount);
-    res.status(200).send("Job count received");
-});
-
 async function scrapeJobs() {
     let browser;
     try {
-        // Launch Puppeteer
         browser = await puppeteer.launch({
-            headless: true, // 在本地调试时设为 false
+            headless: true,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-accelerated-2d-canvas',
                 '--disable-gpu',
-                '--remote-debugging-port=9222'
             ],
             defaultViewport: {
                 width: 1280,
                 height: 800,
             },
-            protocolTimeout: 1200000, // 设置超时为 20 分钟
+            protocolTimeout: 60000, // 增加到 60 秒
         });
 
         const page = await browser.newPage();
-        const salaryRanges = ["0-11000", "11000-14000", "14000-17000", "17000-20000", "20000-25000", "25000-30000", "30000-35000", "35000-40000", "40000-50000", "50000-60000", "60000-80000", "80000-120000", "120000-"];
-        const currentDate = new Date().toISOString().split("T")[0];
+
+        page.on('framenavigated', frame => {
+            if (frame.url() !== url) {
+                console.warn(`检测到页面导航: ${frame.url()}`);
+            }
+        });
+
+        page.on('dialog', async dialog => {
+            console.log(`对话框消息: ${dialog.message()}`);
+            await dialog.dismiss(); // 或者 dialog.accept();
+        });
 
         const fetchWithRetries = async (fn, retries = 3) => {
             try {
                 return await fn();
             } catch (error) {
                 if (retries > 0) {
-                    console.warn(`Retrying due to error: ${error}`);
+                    console.warn(`重试由于错误: ${error}`);
                     return fetchWithRetries(fn, retries - 1);
                 } else {
                     throw error;
@@ -64,17 +46,6 @@ async function scrapeJobs() {
         for (const salaryRange of salaryRanges) {
             let currentPage = 1;
             let totalPages;
-            let javaCount = 0;
-            let pythonCount = 0;
-            let javaScriptCount = 0;
-            let typeScriptCount = 0;
-            let reactJsCount = 0;
-            let vueJsCount = 0;
-            let springCount = 0;
-            let nodeJsCount = 0;
-            let mySqlCount = 0;
-            let noSqlCount = 0;
-
             let jobCount = 0;
             let countItem;
 
@@ -82,8 +53,8 @@ async function scrapeJobs() {
                 const url = `https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=1&page=${currentPage}&salaryrange=${salaryRange}&salarytype=monthly&sortmode=ListedDate`;
 
                 try {
-                    await fetchWithRetries(() => page.goto(url, { timeout: 1200000 }));
-                    await fetchWithRetries(() => page.waitForSelector('[data-card-type="JobCard"]', { timeout: 1200000 }));
+                    await fetchWithRetries(() => page.goto(url, { timeout: 60000 }));
+                    await fetchWithRetries(() => page.waitForSelector('[data-card-type="JobCard"]', { timeout: 60000 }));
 
                     totalPages = await page.evaluate(() => {
                         const totalJobsCount = document.querySelector('[data-automation="totalJobsCount"]').innerText;
@@ -114,7 +85,7 @@ async function scrapeJobs() {
                         const jobTitleElement = await jobCard.$('[data-automation="jobTitle"]');
                         await jobTitleElement.click();
 
-                        await fetchWithRetries(() => page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 1200000 }));
+                        await fetchWithRetries(() => page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 60000 }));
 
                         const detailData = await page.evaluate(() => {
                             const jobDetail = document.querySelectorAll('[data-automation="jobAdDetails"]');
@@ -131,6 +102,7 @@ async function scrapeJobs() {
 
                         const jobDescription = detailData[0]?.["jobAdDetails"].toLowerCase().replace(/\s+/g, "");
 
+                        // Count occurrences
                         if (jobDescription.includes("java")) javaCount++;
                         if (jobDescription.includes("python")) pythonCount++;
                         if (jobDescription.includes("javascript")) javaScriptCount++;
@@ -170,37 +142,37 @@ async function scrapeJobs() {
                     };
 
                     try {
-                        console.log(`Calling API ${salaryRange}-page-${currentPage}....`);
+                        console.log(`调用 API ${salaryRange}-page-${currentPage}....`);
                         await axios.post(`${baseUrl}/v1/job-detail-list`, combinedData, {
                             headers: {
                                 "Content-Type": "application/json",
                             },
                         });
-                        console.log(`Successfully added ${salaryRange}-page-${currentPage} to server`);
+                        console.log(`成功添加 ${salaryRange}-page-${currentPage} 到服务器`);
                     } catch (err) {
-                        console.error(`Error calling detail list API: ${err}`);
+                        console.error(`调用详细列表 API 错误: ${err}`);
                     }
                     currentPage++;
                 } catch (error) {
-                    console.error(`Error during scraping: ${error}`);
-                    break; // Exit the loop if an error occurs
+                    console.error(`抓取过程中出现错误: ${error}`);
+                    break; // 如果发生错误则退出循环
                 }
             } while (currentPage <= totalPages);
 
             try {
-                console.log(`Calling count API`);
+                console.log(`调用计数 API`);
                 await axios.post(`${baseUrl}/v1/job-count`, countItem, {
                     headers: {
                         "Content-Type": "application/json",
                     },
                 });
-                console.log(`Successfully added count`);
+                console.log(`成功添加计数`);
             } catch (err) {
-                console.error(`Error calling count API: ${err}`);
+                console.error(`调用计数 API 错误: ${err}`);
             }
         }
     } catch (err) {
-        console.error(`Failed to initialize Puppeteer: ${err}`);
+        console.error(`初始化 Puppeteer 失败: ${err}`);
     } finally {
         if (browser) {
             await browser.close();
@@ -208,21 +180,21 @@ async function scrapeJobs() {
     }
 }
 
-// Set server to listen first, which allows it to handle requests immediately
+// 设置服务器监听，允许它立即处理请求
 app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+    console.log(`服务器正在运行在 http://localhost:${port}`);
 });
 
-// Run the scraping task once upon server startup
+// 启动时运行抓取任务
 await scrapeJobs();
 
-// Set a daily interval for the scraping task
+// 设置每日间隔来运行抓取任务
 setInterval(async () => {
-    console.log("Running scraping task");
+    console.log("运行抓取任务");
     await scrapeJobs();
-}, 24 * 60 * 60 * 1000); // 24 hours
+}, 24 * 60 * 60 * 1000); // 24 小时
 
-// Keep the server active
+// 保持服务器活跃
 setInterval(() => {
-    console.log("Script is running to stay active...");
-}, 600000);
+    console.log("脚本正在运行以保持活跃...");
+}, 600000); // 10 分钟
