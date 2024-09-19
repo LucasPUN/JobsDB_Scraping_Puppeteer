@@ -62,7 +62,8 @@ async function scrapeJobs() {
         });
 
         const page = await browser.newPage();
-        const salaryRanges = ["0-11000", "11000-14000", "14000-17000", "17000-20000", "20000-25000", "25000-30000", "30000-35000", "35000-40000", "40000-50000", "50000-60000", "60000-80000", "80000-120000", "120000-"];
+        const salaryRanges = ["0-11000", "11000-14000", "14000-17000", "17000-20000", "20000-25000"];
+        // const salaryRanges = ["0-11000", "11000-14000", "14000-17000", "17000-20000", "20000-25000", "25000-30000", "30000-35000", "35000-40000", "40000-50000", "50000-60000", "60000-80000", "80000-120000", "120000-"];
         const currentDate = new Date().toISOString().split("T")[0];
 
         for (const salaryRange of salaryRanges) {
@@ -85,7 +86,7 @@ async function scrapeJobs() {
             let countItem;
 
             do {
-                const url = `https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=1&page=${currentPage}&salaryrange=${salaryRange}&salarytype=monthly&sortmode=ListedDate`;
+                const url = `https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=3&page=${currentPage}&salaryrange=${salaryRange}&salarytype=monthly&sortmode=ListedDate`;
 
                 try {
                     await fetchWithRetries(async () => {
