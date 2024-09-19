@@ -68,8 +68,8 @@ async function scrapeJobs() {
                 const url = `https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=1&page=${currentPage}&salaryrange=${salaryRange}&salarytype=monthly&sortmode=ListedDate`;
 
                 try {
-                    await page.goto(url, { timeout: 180000 });
-                    await page.waitForSelector('[data-card-type="JobCard"]', { timeout: 180000 });
+                    await page.goto(url, { timeout: 600000 });
+                    await page.waitForSelector('[data-card-type="JobCard"]', { timeout: 600000 });
 
                     totalPages = await page.evaluate(() => {
                         const totalJobsCount = document.querySelector(
@@ -104,11 +104,11 @@ async function scrapeJobs() {
                         );
                         await jobTitleElement.click();
 
-                        await page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 180000 });
+                        await page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 600000 });
 
                         const detailData = await page.evaluate(() => {
                             const jobDetail = document.querySelectorAll(
-                                '[data-automation="jobAdDetails"]', { timeout: 180000 }
+                                '[data-automation="jobAdDetails"]', { timeout: 600000 }
                             );
                             const jobDetailData = [];
                             const data = {};
