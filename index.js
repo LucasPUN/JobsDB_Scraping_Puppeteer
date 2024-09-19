@@ -28,7 +28,7 @@ async function scrapeJobs() {
     try {
         // Launch Puppeteer
         browser = await puppeteer.launch({
-            headless: true, // 在本地调试时设为 false
+            headless: false, // 在本地调试时设为 false
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
@@ -104,11 +104,11 @@ async function scrapeJobs() {
                         );
                         await jobTitleElement.click();
 
-                        await page.waitForSelector('[data-automation="jobAdDetails"]', { visible: true, timeout: 120000 });
+                        await page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 180000 });
 
                         const detailData = await page.evaluate(() => {
                             const jobDetail = document.querySelectorAll(
-                                '[data-automation="jobAdDetails"]', { visible: true, timeout: 120000 }
+                                '[data-automation="jobAdDetails"]', { timeout: 180000 }
                             );
                             const jobDetailData = [];
                             const data = {};
