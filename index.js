@@ -23,9 +23,11 @@ app.post("/v1/job-count", (req, res) => {
     res.status(200).send("Job count received");
 });
 
-const launchBrowser = async () => {
+async function scrapeJobs() {
+    let browser;
     try {
-        return await puppeteer.launch({
+        // Launch Puppeteer
+        browser = await puppeteer.launch({
             headless: true, // 在本地调试时设为 false
             args: [
                 '--no-sandbox',
@@ -41,17 +43,8 @@ const launchBrowser = async () => {
             },
             protocolTimeout: 1200000, // 设置超时为 20 分钟
         });
-    } catch (err) {
-        console.error('Failed to launch Puppeteer:', err);
-        throw err;
-    }
-};
 
-const scrapeJobs = async () => {
-    let browser;
-    try {
-        browser = await launchBrowser();
-        const page = await browser.newPage();
+        let page = await browser.newPage();
         const salaryRanges = ["0-11000", "11000-14000", "14000-17000", "17000-20000", "20000-25000", "25000-30000", "30000-35000", "35000-40000", "40000-50000", "50000-60000", "60000-80000", "80000-120000", "120000-"];
         const currentDate = new Date().toISOString().split("T")[0];
 
@@ -71,7 +64,17 @@ const scrapeJobs = async () => {
         for (const salaryRange of salaryRanges) {
             let currentPage = 1;
             let totalPages;
-            let javaCount = 0, pythonCount = 0, javaScriptCount = 0, typeScriptCount = 0, reactJsCount = 0, vueJsCount = 0, springCount = 0, nodeJsCount = 0, mySqlCount = 0, noSqlCount = 0;
+            let javaCount = 0;
+            let pythonCount = 0;
+            let javaScriptCount = 0;
+            let typeScriptCount = 0;
+            let reactJsCount = 0;
+            let vueJsCount = 0;
+            let springCount = 0;
+            let nodeJsCount = 0;
+            let mySqlCount = 0;
+            let noSqlCount = 0;
+
             let jobCount = 0;
             let countItem;
 
@@ -148,7 +151,7 @@ const scrapeJobs = async () => {
                         combinedData.push(combinedItem);
                     }
 
-                    jobCount += combinedData.length;
+                    jobCount = jobCount + combinedData.length;
 
                     countItem = {
                         SalaryRange: salaryRange,
@@ -180,7 +183,26 @@ const scrapeJobs = async () => {
                     currentPage++;
                 } catch (error) {
                     console.error(`Error during scraping: ${error}`);
-                    break; // Exit the loop if an error occurs
+                    // Close and restart Puppeteer on error
+                    if (browser) await browser.close();
+                    browser = await puppeteer.launch({
+                        headless: true,
+                        args: [
+                            '--no-sandbox',
+                            '--disable-setuid-sandbox',
+                            '--disable-dev-shm-usage',
+                            '--disable-accelerated-2d-canvas',
+                            '--disable-gpu',
+                            '--remote-debugging-port=9222'
+                        ],
+                        defaultViewport: {
+                            width: 1280,
+                            height: 800,
+                        },
+                        protocolTimeout: 1200000,
+                    });
+                    page = await browser.newPage();
+                    break; // Restart the loop for the current salaryRange
                 }
             } while (currentPage <= totalPages);
 
@@ -203,7 +225,7 @@ const scrapeJobs = async () => {
             await browser.close();
         }
     }
-};
+}
 
 // Set server to listen first, which allows it to handle requests immediately
 app.listen(port, () => {
@@ -211,19 +233,17 @@ app.listen(port, () => {
 });
 
 // Run the scraping task once upon server startup
-const startScraping = async () => {
-    try {
-        console.log("Starting scraping task");
-        await scrapeJobs();
-    } catch (error) {
-        console.error("Failed to run scraping task:", error);
-    }
-};
-
-await startScraping();
+scrapeJobs().catch(error => console.error(`Error running initial scraping task: ${error}`));
 
 // Set a daily interval for the scraping task
-setInterval(startScraping, 24 * 60 * 60 * 1000); // 24 hours
+setInterval(async () => {
+    console.log("Running scraping task");
+    try {
+        await scrapeJobs();
+    } catch (error) {
+        console.error(`Error during scheduled scraping task: ${error}`);
+    }
+}, 24 * 60 * 60 * 1000); // 24 hours
 
 // Keep the server active
 setInterval(() => {
