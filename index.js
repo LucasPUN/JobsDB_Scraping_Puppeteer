@@ -15,6 +15,18 @@ app.get("/", (req, res) => {
     res.status(200).send("Server is running");
 });
 
+app.post("/v1/job-detail-list", (req, res) => {
+    const jobDetails = req.body;
+    console.log("Received job details:", jobDetails);
+    res.status(200).send("Job details received");
+});
+
+app.post("/v1/job-count", (req, res) => {
+    const jobCount = req.body;
+    console.log("Received job count:", jobCount);
+    res.status(200).send("Job count received");
+});
+
 // Helper function to handle retries
 async function fetchWithRetries(fn, retries = 3) {
     try {
@@ -108,7 +120,8 @@ async function scrapeJobs() {
                             const data = {};
                             jobDetail.forEach((element) => {
                                 const key = element.getAttribute("data-automation");
-                                data[key] = element.innerText.trim();
+                                const value = element.innerText.trim();
+                                data[key] = value;
                             });
                             jobDetailData.push(data);
                             return jobDetailData;
