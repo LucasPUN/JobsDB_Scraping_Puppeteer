@@ -11,16 +11,8 @@ const baseUrl = `https://jobsdb-scraping-nodejs.onrender.com`;
 
 app.use(express.json());
 
-app.post("/v1/job-detail-list", (req, res) => {
-    const jobDetails = req.body;
-    console.log("Received job details:", jobDetails);
-    res.status(200).send("Job details received");
-});
-
-app.post("/v1/job-count", (req, res) => {
-    const jobCount = req.body;
-    console.log("Received job count:", jobCount);
-    res.status(200).send("Job count received");
+app.get("/", (req, res) => {
+    res.status(200).send("Server is running");
 });
 
 // Helper function to handle retries
@@ -30,9 +22,9 @@ async function fetchWithRetries(fn, retries = 3) {
     } catch (error) {
         if (error.message.includes('detached') && retries > 0) {
             console.warn(`Retrying due to detached frame: ${error}`);
-            return fetchWithRetries(fn, retries - 1);  // Retry if the error is frame detachment
+            return fetchWithRetries(fn, retries - 1);
         } else {
-            throw error;  // Throw if max retries reached or another error occurred
+            throw error;
         }
     }
 }
@@ -58,7 +50,7 @@ async function scrapeJobs() {
         });
 
         const page = await browser.newPage();
-        const salaryRanges = ["17000-20000", "20000-25000", "25000-30000", "30000-35000", "35000-40000", "40000-50000", "50000-60000", "60000-80000", "80000-120000", "120000-"];
+        const salaryRanges = ["0-11000", "11000-14000", "14000-17000", "17000-20000", "20000-25000", "25000-30000", "30000-35000", "35000-40000", "40000-50000", "50000-60000", "60000-80000", "80000-120000", "120000-"];
         const currentDate = new Date().toISOString().split("T")[0];
 
         for (const salaryRange of salaryRanges) {
@@ -169,7 +161,7 @@ async function scrapeJobs() {
                     currentPage++;
                 } catch (error) {
                     console.error(`Error during scraping: ${error}`);
-                    break; // Exit the loop if an error occurs
+                    break;
                 }
             } while (currentPage <= totalPages);
 
@@ -194,7 +186,6 @@ async function scrapeJobs() {
     }
 }
 
-// Set server to listen first, which allows it to handle requests immediately
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
 });
@@ -206,7 +197,7 @@ await scrapeJobs();
 setInterval(async () => {
     console.log("Running scraping task");
     await scrapeJobs();
-}, 24 * 60 * 60 * 1000); // 24 hours
+}, 24 * 60 * 60 * 1000);
 
 // Keep the server active
 setInterval(() => {
