@@ -23,6 +23,20 @@ app.post("/v1/job-count", (req, res) => {
     res.status(200).send("Job count received");
 });
 
+// Helper function to handle retries
+async function fetchWithRetries(fn, retries = 3) {
+    try {
+        return await fn();
+    } catch (error) {
+        if (error.message.includes('detached') && retries > 0) {
+            console.warn(`Retrying due to detached frame: ${error}`);
+            return fetchWithRetries(fn, retries - 1);  // Retry if the error is frame detachment
+        } else {
+            throw error;  // Throw if max retries reached or another error occurred
+        }
+    }
+}
+
 async function scrapeJobs() {
     let browser;
     try {
@@ -37,8 +51,8 @@ async function scrapeJobs() {
                 '--disable-gpu',
             ],
             defaultViewport: {
-                width: 1280, // 设置宽度
-                height: 800, // 设置高度
+                width: 1280,
+                height: 800,
             },
             protocolTimeout: 1200000, // 设置超时为 120 秒
         });
@@ -50,16 +64,18 @@ async function scrapeJobs() {
         for (const salaryRange of salaryRanges) {
             let currentPage = 1;
             let totalPages;
-            let javaCount = 0;
-            let pythonCount = 0;
-            let javaScriptCount = 0;
-            let typeScriptCount = 0;
-            let reactJsCount = 0;
-            let vueJsCount = 0;
-            let springCount = 0;
-            let nodeJsCount = 0;
-            let mySqlCount = 0;
-            let noSqlCount = 0;
+            let jobCounts = {
+                javaCount: 0,
+                pythonCount: 0,
+                javaScriptCount: 0,
+                typeScriptCount: 0,
+                reactJsCount: 0,
+                vueJsCount: 0,
+                springCount: 0,
+                nodeJsCount: 0,
+                mySqlCount: 0,
+                noSqlCount: 0
+            };
 
             let jobCount = 0;
             let countItem;
@@ -68,8 +84,10 @@ async function scrapeJobs() {
                 const url = `https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=1&page=${currentPage}&salaryrange=${salaryRange}&salarytype=monthly&sortmode=ListedDate`;
 
                 try {
-                    await page.goto(url, { timeout: 1200000 });
-                    await page.waitForSelector('[data-card-type="JobCard"]', { timeout: 1200000 });
+                    await fetchWithRetries(async () => {
+                        await page.goto(url, { timeout: 1200000 });
+                        await page.waitForSelector('[data-card-type="JobCard"]', { timeout: 1200000 });
+                    });
 
                     totalPages = await page.evaluate(() => {
                         const totalJobsCount = document.querySelector(
@@ -78,37 +96,21 @@ async function scrapeJobs() {
                         return Math.ceil(Number(totalJobsCount) / 32);
                     });
 
-                    const jobCardData = await page.evaluate(() => {
-                        const jobCards = document.querySelectorAll('[data-card-type="JobCard"]');
-                        const jobData = [];
-                        jobCards.forEach((card) => {
-                            const dataElements = card.querySelectorAll('[data-automation]');
-                            const data = {};
-                            data["id"] = card.dataset.jobId;
-                            dataElements.forEach((element) => {
-                                const key = element.getAttribute("data-automation");
-                                const value = element.innerText.trim();
-                                data[key] = value;
-                            });
-                            jobData.push(data);
-                        });
-                        return jobData;
-                    });
-
                     const jobCards = await page.$$('[data-card-type="JobCard"]');
                     const combinedData = [];
 
                     for (const jobCard of jobCards) {
-                        const jobTitleElement = await jobCard.$(
-                            '[data-automation="jobTitle"]'
-                        );
-                        await jobTitleElement.click();
-
-                        await page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 1200000 });
+                        await fetchWithRetries(async () => {
+                            const jobTitleElement = await jobCard.$(
+                                '[data-automation="jobTitle"]'
+                            );
+                            await jobTitleElement.click();
+                            await page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 1200000 });
+                        });
 
                         const detailData = await page.evaluate(() => {
                             const jobDetail = document.querySelectorAll(
-                                '[data-automation="jobAdDetails"]', { timeout: 1200000 }
+                                '[data-automation="jobAdDetails"]'
                             );
                             const jobDetailData = [];
                             const data = {};
@@ -126,41 +128,30 @@ async function scrapeJobs() {
                             .toLowerCase()
                             .replace(/\s+/g, "");
 
-                        if (jobDescription.includes("java")) javaCount++;
-                        if (jobDescription.includes("python")) pythonCount++;
-                        if (jobDescription.includes("javascript")) javaScriptCount++;
-                        if (jobDescription.includes("typescript")) typeScriptCount++;
-                        if (jobDescription.includes("reactjs")) reactJsCount++;
-                        if (jobDescription.includes("vuejs")) vueJsCount++;
-                        if (jobDescription.includes("spring")) springCount++;
-                        if (jobDescription.includes("nodejs")) nodeJsCount++;
-                        if (jobDescription.includes("mysql")) mySqlCount++;
-                        if (jobDescription.includes("nosql")) noSqlCount++;
+                        if (jobDescription.includes("java")) jobCounts.javaCount++;
+                        if (jobDescription.includes("python")) jobCounts.pythonCount++;
+                        if (jobDescription.includes("javascript")) jobCounts.javaScriptCount++;
+                        if (jobDescription.includes("typescript")) jobCounts.typeScriptCount++;
+                        if (jobDescription.includes("reactjs")) jobCounts.reactJsCount++;
+                        if (jobDescription.includes("vuejs")) jobCounts.vueJsCount++;
+                        if (jobDescription.includes("spring")) jobCounts.springCount++;
+                        if (jobDescription.includes("nodejs")) jobCounts.nodeJsCount++;
+                        if (jobDescription.includes("mysql")) jobCounts.mySqlCount++;
+                        if (jobDescription.includes("nosql")) jobCounts.noSqlCount++;
 
-                        const combinedItem = {
+                        combinedData.push({
                             date: currentDate,
                             salaryRange: salaryRange,
-                            ...jobCardData.shift(),
                             ...detailData.shift(),
-                        };
-                        combinedData.push(combinedItem);
+                        });
                     }
 
-                    jobCount = jobCount + combinedData.length;
+                    jobCount += combinedData.length;
 
                     countItem = {
                         SalaryRange: salaryRange,
                         Total: jobCount,
-                        Java: javaCount,
-                        Python: pythonCount,
-                        JavaScript: javaScriptCount,
-                        TypeScript: typeScriptCount,
-                        ReactJS: reactJsCount,
-                        VueJs: vueJsCount,
-                        Spring: springCount,
-                        NodeJS: nodeJsCount,
-                        MySQL: mySqlCount,
-                        NoSQL: noSqlCount,
+                        ...jobCounts,
                         date: currentDate,
                     };
 
