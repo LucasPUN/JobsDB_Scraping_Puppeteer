@@ -28,7 +28,7 @@ async function scrapeJobs() {
     try {
         // Launch Puppeteer
         browser = await puppeteer.launch({
-            headless: false, // 在本地调试时设为 false
+            headless: true, // 在本地调试时设为 false
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
