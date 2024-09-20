@@ -28,16 +28,20 @@ async function fetchWithRetries(fn, retries = 3) {
         }
     }
 }
+
 async function scrapeJobs() {
     const salaryRanges = ["0-11000", "11000-14000", "14000-17000", "17000-20000", "20000-25000", "25000-30000", "30000-35000", "35000-40000", "40000-50000", "50000-60000", "60000-80000", "80000-120000"];
     const currentDate = new Date().toISOString().split("T")[0];
 
     for (const salaryRange of salaryRanges) {
         let browser;
+        let combinedData = [];
+        let countItem = {};
+
         try {
             // 每个 salaryRange 都重新启动 Puppeteer 实例
             browser = await puppeteer.launch({
-                headless: false,
+                headless: true,
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
@@ -49,7 +53,7 @@ async function scrapeJobs() {
                     width: 1280,
                     height: 800,
                 },
-                protocolTimeout: 120000,  // 增加协议超时时间为3分钟
+                protocolTimeout: 120000,
             });
 
             const page = await browser.newPage();
@@ -69,14 +73,13 @@ async function scrapeJobs() {
             };
 
             let jobCount = 0;
-            let countItem;
 
             do {
                 const url = `https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=1&page=${currentPage}&salaryrange=${salaryRange}&salarytype=monthly&sortmode=ListedDate`;
 
                 try {
                     await fetchWithRetries(async () => {
-                        await page.goto(url, { timeout: 120000 });  // 增加页面加载超时时间
+                        await page.goto(url, { timeout: 120000 });
                         await page.waitForSelector('[data-card-type="JobCard"]', { timeout: 120000 });
                     });
 
@@ -87,24 +90,7 @@ async function scrapeJobs() {
                         return Math.ceil(Number(totalJobsCount) / 32);
                     });
 
-                    const jobCardData = await page.evaluate(() => {
-                        const jobCards = document.querySelectorAll('[data-card-type="JobCard"]');
-                        const jobData = [];
-                        jobCards.forEach((card) => {
-                            const dataElements = card.querySelectorAll('[data-automation]');
-                            const data = {};
-                            data["id"] = card.dataset.jobId;
-                            dataElements.forEach((element) => {
-                                const key = element.getAttribute("data-automation");
-                                data[key] = element.innerText.trim();
-                            });
-                            jobData.push(data);
-                        });
-                        return jobData;
-                    });
-
                     const jobCards = await page.$$('[data-card-type="JobCard"]');
-                    const combinedData = [];
 
                     for (const jobCard of jobCards) {
                         const jobTitleElement = await jobCard.$('[data-automation="jobTitle"]');
@@ -114,17 +100,15 @@ async function scrapeJobs() {
 
                         const detailData = await page.evaluate(() => {
                             const jobDetail = document.querySelectorAll('[data-automation="jobAdDetails"]');
-                            const jobDetailData = [];
                             const data = {};
                             jobDetail.forEach((element) => {
                                 const key = element.getAttribute("data-automation");
                                 data[key] = element.innerText.trim();
                             });
-                            jobDetailData.push(data);
-                            return jobDetailData;
+                            return data;
                         });
 
-                        const jobDescription = detailData[0]?.["jobAdDetails"].toLowerCase().replace(/\s+/g, "");
+                        const jobDescription = detailData["jobAdDetails"]?.toLowerCase().replace(/\s+/g, "");
 
                         if (jobDescription.includes("java")) jobCounts.javaCount++;
                         if (jobDescription.includes("python")) jobCounts.pythonCount++;
@@ -137,13 +121,11 @@ async function scrapeJobs() {
                         if (jobDescription.includes("mysql")) jobCounts.mySqlCount++;
                         if (jobDescription.includes("nosql")) jobCounts.noSqlCount++;
 
-                        const combinedItem = {
+                        combinedData.push({
                             date: currentDate,
                             salaryRange: salaryRange,
-                            ...jobCardData.shift(),
-                            ...detailData.shift(),
-                        };
-                        combinedData.push(combinedItem);
+                            ...detailData
+                        });
                     }
 
                     jobCount += combinedData.length;
@@ -155,40 +137,39 @@ async function scrapeJobs() {
                         date: currentDate,
                     };
 
-                    try {
-                        console.log(`Calling API ${salaryRange}-page-${currentPage}....`);
-                        await axios.post(`${baseUrl}/v1/job-detail-list`, combinedData, {
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                        });
-                        console.log(`Successfully added ${salaryRange}-page-${currentPage} to server`);
-                    } catch (err) {
-                        console.error(err);
-                    }
                     currentPage++;
                 } catch (error) {
                     console.error(`Error during scraping: ${error}`);
-                    // If ProtocolError occurs, skip API calls and continue
-                    if (error.message.includes('ProtocolError')) {
-                        console.log("Skipping API calls due to ProtocolError.");
-                        break;
-                    }
+                    break; // Exit the loop if an error occurs
                 }
             } while (currentPage <= totalPages);
 
-            try {
-                if (countItem) {
-                    console.log(`Calling count API`);
+            if (combinedData.length > 0) {
+                try {
+                    console.log(`Calling API ${salaryRange}-page-${currentPage}....`);
+                    await axios.post(`${baseUrl}/v1/job-detail-list`, combinedData, {
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                    });
+                    console.log(`Successfully added ${salaryRange}-page-${currentPage} to server`);
+                } catch (err) {
+                    console.error(`Failed to call job-detail-list API: ${err}`);
+                }
+            }
+
+            if (Object.keys(countItem).length > 0) {
+                try {
+                    console.log("Calling count API");
                     await axios.post(`${baseUrl}/v1/job-count`, countItem, {
                         headers: {
                             "Content-Type": "application/json",
                         },
                     });
-                    console.log(`Successfully added count`);
+                    console.log("Successfully added count");
+                } catch (err) {
+                    console.error(`Failed to call job-count API: ${err}`);
                 }
-            } catch (err) {
-                console.error(err);
             }
         } catch (err) {
             console.error(`Failed to initialize Puppeteer: ${err}`);
@@ -199,3 +180,18 @@ async function scrapeJobs() {
         }
     }
 }
+
+
+// Set server to listen first, which allows it to handle requests immediately
+app.listen(port, () => {
+    console.log(`Server is running on ${port}`);
+});
+
+// Run the scraping task once upon server startup
+await scrapeJobs();
+
+// Set a daily interval for the scraping task
+setInterval(async () => {
+    console.log("Running scraping task");
+    await scrapeJobs();
+}, 24 * 60 * 60 * 1000); // 24 hours0-
