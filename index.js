@@ -90,7 +90,24 @@ async function scrapeJobs() {
                         return Math.ceil(Number(totalJobsCount) / 32);
                     });
 
+                    const jobCardData = await page.evaluate(() => {
+                        const jobCards = document.querySelectorAll('[data-card-type="JobCard"]');
+                        const jobData = [];
+                        jobCards.forEach((card) => {
+                            const dataElements = card.querySelectorAll('[data-automation]');
+                            const data = {};
+                            data["id"] = card.dataset.jobId;
+                            dataElements.forEach((element) => {
+                                const key = element.getAttribute("data-automation");
+                                data[key] = element.innerText.trim();
+                            });
+                            jobData.push(data);
+                        });
+                        return jobData;
+                    });
+
                     const jobCards = await page.$$('[data-card-type="JobCard"]');
+                    const combinedData = [];
 
                     for (const jobCard of jobCards) {
                         const jobTitleElement = await jobCard.$('[data-automation="jobTitle"]');
@@ -100,15 +117,17 @@ async function scrapeJobs() {
 
                         const detailData = await page.evaluate(() => {
                             const jobDetail = document.querySelectorAll('[data-automation="jobAdDetails"]');
+                            const jobDetailData = [];
                             const data = {};
                             jobDetail.forEach((element) => {
                                 const key = element.getAttribute("data-automation");
                                 data[key] = element.innerText.trim();
                             });
-                            return data;
+                            jobDetailData.push(data);
+                            return jobDetailData;
                         });
 
-                        const jobDescription = detailData["jobAdDetails"]?.toLowerCase().replace(/\s+/g, "");
+                        const jobDescription = detailData[0]?.["jobAdDetails"].toLowerCase().replace(/\s+/g, "");
 
                         if (jobDescription.includes("java")) jobCounts.javaCount++;
                         if (jobDescription.includes("python")) jobCounts.pythonCount++;
@@ -121,11 +140,13 @@ async function scrapeJobs() {
                         if (jobDescription.includes("mysql")) jobCounts.mySqlCount++;
                         if (jobDescription.includes("nosql")) jobCounts.noSqlCount++;
 
-                        combinedData.push({
+                        const combinedItem = {
                             date: currentDate,
                             salaryRange: salaryRange,
-                            ...detailData
-                        });
+                            ...jobCardData.shift(),
+                            ...detailData.shift(),
+                        };
+                        combinedData.push(combinedItem);
                     }
 
                     jobCount += combinedData.length;
