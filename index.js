@@ -15,18 +15,6 @@ app.get("/", (req, res) => {
     res.status(200).send("Server is running");
 });
 
-// app.post("/v1/job-detail-list", (req, res) => {
-//     const jobDetails = req.body;
-//     console.log("Received job details:", jobDetails);
-//     res.status(200).send("Job details received");
-// });
-//
-// app.post("/v1/job-count", (req, res) => {
-//     const jobCount = req.body;
-//     console.log("Received job count:", jobCount);
-//     res.status(200).send("Job count received");
-// });
-
 // Helper function to handle retries
 async function fetchWithRetries(fn, retries = 3) {
     try {
@@ -62,7 +50,7 @@ async function scrapeJobs() {
                     width: 1280,
                     height: 800,
                 },
-                protocolTimeout: 1200000, // 设置超时为 120 秒
+                protocolTimeout: 120000,
             });
 
             const page = await browser.newPage();
@@ -85,12 +73,12 @@ async function scrapeJobs() {
             let countItem;
 
             do {
-                const url = `https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=3&page=${currentPage}&salaryrange=${salaryRange}&salarytype=monthly&sortmode=ListedDate`;
+                const url = `https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=1&page=${currentPage}&salaryrange=${salaryRange}&salarytype=monthly&sortmode=ListedDate`;
 
                 try {
                     await fetchWithRetries(async () => {
-                        await page.goto(url, { timeout: 1200000 });
-                        await page.waitForSelector('[data-card-type="JobCard"]', { timeout: 1200000 });
+                        await page.goto(url, { timeout: 120000 });
+                        await page.waitForSelector('[data-card-type="JobCard"]', { timeout: 120000 });
                     });
 
                     totalPages = await page.evaluate(() => {
@@ -123,7 +111,7 @@ async function scrapeJobs() {
                         const jobTitleElement = await jobCard.$('[data-automation="jobTitle"]');
                         await jobTitleElement.click();
 
-                        await page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 1200000 });
+                        await page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 120000 });
 
                         const detailData = await page.evaluate(() => {
                             const jobDetail = document.querySelectorAll('[data-automation="jobAdDetails"]');
@@ -153,8 +141,8 @@ async function scrapeJobs() {
                         const combinedItem = {
                             date: currentDate,
                             salaryRange: salaryRange,
-                            ...jobCardData.shift(),  // 保留 jobCardData 的 shift
-                            ...detailData.shift(),   // 保留 detailData 的 shift
+                            ...jobCardData.shift(),
+                            ...detailData.shift(),
                         };
                         combinedData.push(combinedItem);
                     }
@@ -221,7 +209,3 @@ setInterval(async () => {
     await scrapeJobs();
 }, 24 * 60 * 60 * 1000); // 24 hours
 
-// Keep the server active
-setInterval(() => {
-    console.log("Script is running to stay active...");
-}, 60000);
