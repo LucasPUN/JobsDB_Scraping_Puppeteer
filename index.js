@@ -28,7 +28,6 @@ async function fetchWithRetries(fn, retries = 3) {
         }
     }
 }
-
 async function scrapeJobs() {
     const salaryRanges = ["0-11000", "11000-14000", "14000-17000", "17000-20000", "20000-25000", "25000-30000", "30000-35000", "35000-40000", "40000-50000", "50000-60000", "60000-80000", "80000-120000"];
     const currentDate = new Date().toISOString().split("T")[0];
@@ -38,7 +37,7 @@ async function scrapeJobs() {
         try {
             // 每个 salaryRange 都重新启动 Puppeteer 实例
             browser = await puppeteer.launch({
-                headless: true,
+                headless: false,
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
@@ -50,7 +49,7 @@ async function scrapeJobs() {
                     width: 1280,
                     height: 800,
                 },
-                protocolTimeout: 120000,
+                protocolTimeout: 120000,  // 增加协议超时时间为3分钟
             });
 
             const page = await browser.newPage();
@@ -77,8 +76,8 @@ async function scrapeJobs() {
 
                 try {
                     await fetchWithRetries(async () => {
-                        await page.goto(url, { timeout: 600000 });
-                        await page.waitForSelector('[data-card-type="JobCard"]', { timeout: 600000 });
+                        await page.goto(url, { timeout: 120000 });  // 增加页面加载超时时间
+                        await page.waitForSelector('[data-card-type="JobCard"]', { timeout: 120000 });
                     });
 
                     totalPages = await page.evaluate(() => {
@@ -111,7 +110,7 @@ async function scrapeJobs() {
                         const jobTitleElement = await jobCard.$('[data-automation="jobTitle"]');
                         await jobTitleElement.click();
 
-                        await page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 600000 });
+                        await page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 120000 });
 
                         const detailData = await page.evaluate(() => {
                             const jobDetail = document.querySelectorAll('[data-automation="jobAdDetails"]');
@@ -170,18 +169,24 @@ async function scrapeJobs() {
                     currentPage++;
                 } catch (error) {
                     console.error(`Error during scraping: ${error}`);
-                    break; // Exit the loop if an error occurs
+                    // If ProtocolError occurs, skip API calls and continue
+                    if (error.message.includes('ProtocolError')) {
+                        console.log("Skipping API calls due to ProtocolError.");
+                        break;
+                    }
                 }
             } while (currentPage <= totalPages);
 
             try {
-                console.log(`Calling count API`);
-                await axios.post(`${baseUrl}/v1/job-count`, countItem, {
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                });
-                console.log(`Successfully added count`);
+                if (countItem) {
+                    console.log(`Calling count API`);
+                    await axios.post(`${baseUrl}/v1/job-count`, countItem, {
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                    });
+                    console.log(`Successfully added count`);
+                }
             } catch (err) {
                 console.error(err);
             }
@@ -194,18 +199,3 @@ async function scrapeJobs() {
         }
     }
 }
-
-// Set server to listen first, which allows it to handle requests immediately
-app.listen(port, () => {
-    console.log(`Server is running on ${port}`);
-});
-
-// Run the scraping task once upon server startup
-await scrapeJobs();
-
-// Set a daily interval for the scraping task
-setInterval(async () => {
-    console.log("Running scraping task");
-    await scrapeJobs();
-}, 24 * 60 * 60 * 1000); // 24 hours
-
