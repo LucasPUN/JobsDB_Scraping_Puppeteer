@@ -35,13 +35,10 @@ async function scrapeJobs() {
 
     for (const salaryRange of salaryRanges) {
         let browser;
-        let combinedData = [];
-        let countItem = {};
-
         try {
             // 每个 salaryRange 都重新启动 Puppeteer 实例
             browser = await puppeteer.launch({
-                headless: true,
+                headless: false,
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
@@ -73,14 +70,15 @@ async function scrapeJobs() {
             };
 
             let jobCount = 0;
+            let countItem;
 
             do {
                 const url = `https://hk.jobsdb.com/jobs-in-information-communication-technology?daterange=1&page=${currentPage}&salaryrange=${salaryRange}&salarytype=monthly&sortmode=ListedDate`;
 
                 try {
                     await fetchWithRetries(async () => {
-                        await page.goto(url, { timeout: 120000 });
-                        await page.waitForSelector('[data-card-type="JobCard"]', { timeout: 120000 });
+                        await page.goto(url, {timeout: 120000});
+                        await page.waitForSelector('[data-card-type="JobCard"]', {timeout: 120000});
                     });
 
                     totalPages = await page.evaluate(() => {
@@ -113,7 +111,7 @@ async function scrapeJobs() {
                         const jobTitleElement = await jobCard.$('[data-automation="jobTitle"]');
                         await jobTitleElement.click();
 
-                        await page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 120000 });
+                        await page.waitForSelector('[data-automation="jobAdDetails"]', {timeout: 120000});
 
                         const detailData = await page.evaluate(() => {
                             const jobDetail = document.querySelectorAll('[data-automation="jobAdDetails"]');
@@ -158,6 +156,20 @@ async function scrapeJobs() {
                         date: currentDate,
                     };
 
+                    if (combinedData) {
+
+                        try {
+                            console.log(`Calling API ${salaryRange}-page-${currentPage}....`);
+                            await axios.post(`${baseUrl}/v1/job-detail-list`, combinedData, {
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                            });
+                            console.log(`Successfully added ${salaryRange}-page-${currentPage} to server`);
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    }
                     currentPage++;
                 } catch (error) {
                     console.error(`Error during scraping: ${error}`);
@@ -165,31 +177,17 @@ async function scrapeJobs() {
                 }
             } while (currentPage <= totalPages);
 
-            if (combinedData.length > 0) {
+            if (countItem) {
                 try {
-                    console.log(`Calling API ${salaryRange}-page-${currentPage}....`);
-                    await axios.post(`${baseUrl}/v1/job-detail-list`, combinedData, {
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                    });
-                    console.log(`Successfully added ${salaryRange}-page-${currentPage} to server`);
-                } catch (err) {
-                    console.error(`Failed to call job-detail-list API: ${err}`);
-                }
-            }
-
-            if (Object.keys(countItem).length > 0) {
-                try {
-                    console.log("Calling count API");
+                    console.log(`Calling count API`);
                     await axios.post(`${baseUrl}/v1/job-count`, countItem, {
                         headers: {
                             "Content-Type": "application/json",
                         },
                     });
-                    console.log("Successfully added count");
+                    console.log(`Successfully added count`);
                 } catch (err) {
-                    console.error(`Failed to call job-count API: ${err}`);
+                    console.error(err);
                 }
             }
         } catch (err) {
@@ -201,7 +199,6 @@ async function scrapeJobs() {
         }
     }
 }
-
 
 // Set server to listen first, which allows it to handle requests immediately
 app.listen(port, () => {
@@ -215,4 +212,4 @@ await scrapeJobs();
 setInterval(async () => {
     console.log("Running scraping task");
     await scrapeJobs();
-}, 24 * 60 * 60 * 1000); // 24 hours0-
+}, 24 * 60 * 60 * 1000); // 24 hours
