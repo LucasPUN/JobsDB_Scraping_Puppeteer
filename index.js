@@ -77,8 +77,8 @@ async function scrapeJobs() {
 
                 try {
                     await fetchWithRetries(async () => {
-                        await page.goto(url, { timeout: 120000 });
-                        await page.waitForSelector('[data-card-type="JobCard"]', { timeout: 120000 });
+                        await page.goto(url, { timeout: 600000 });
+                        await page.waitForSelector('[data-card-type="JobCard"]', { timeout: 600000 });
                     });
 
                     totalPages = await page.evaluate(() => {
@@ -111,7 +111,7 @@ async function scrapeJobs() {
                         const jobTitleElement = await jobCard.$('[data-automation="jobTitle"]');
                         await jobTitleElement.click();
 
-                        await page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 120000 });
+                        await page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 600000 });
 
                         const detailData = await page.evaluate(() => {
                             const jobDetail = document.querySelectorAll('[data-automation="jobAdDetails"]');
