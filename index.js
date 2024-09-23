@@ -8,8 +8,6 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 4000;
 const baseUrl = `https://jobsdb-scraping-nodejs.onrender.com`;
-let nextRunInMs = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-let intervalMs = 10 * 60 * 1000;
 
 app.use(express.json());
 
@@ -201,12 +199,6 @@ async function scrapeJobs() {
         }
     }
 }
-// Set a daily interval for the scraping task
-function printTimeUntilNextRun() {
-    const hours = Math.floor(nextRunInMs / (1000 * 60 * 60));
-    const minutes = Math.floor((nextRunInMs % (1000 * 60 * 60)) / (1000 * 60));
-    console.log(`Time remaining until next scrapeJobs(): ${hours} hours and ${minutes} minutes`);
-}
 
 // Set server to listen first, which allows it to handle requests immediately
 app.listen(port, () => {
@@ -216,19 +208,8 @@ app.listen(port, () => {
 // Run the scraping task once upon server startup
 await scrapeJobs();
 
-
-// Start interval to print time remaining every 10 minutes
-setInterval(() => {
-    printTimeUntilNextRun();
-    nextRunInMs -= intervalMs; // Reduce the remaining time
-}, intervalMs);
-
-// Ensure that even if there are errors, setInterval will continue running scrapeJobs
+// Set a daily interval for the scraping task
 setInterval(async () => {
-    try {
-        await scrapeJobs();
-        nextRunInMs = 24 * 60 * 60 * 1000; // Reset the remaining time after each run
-    } catch (error) {
-        console.error(`Error during scheduled scraping task: ${error}`);
-    }
-}, nextRunInMs); // 24 hours
+    console.log("Running scraping task");
+    await scrapeJobs();
+}, 24 * 60 * 60 * 1000); // 24 hours
