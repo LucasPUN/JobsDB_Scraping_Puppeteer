@@ -30,7 +30,8 @@ async function fetchWithRetries(fn, retries = 3) {
 }
 
 async function scrapeJobs() {
-    const salaryRanges = ["20000-25000", "25000-30000", "30000-35000", "35000-40000"];
+    const salaryRanges = ["20000-25000"];
+    // "25000-30000", "30000-35000", "35000-40000"
     const currentDate = new Date().toISOString().split("T")[0];
 
     for (const salaryRange of salaryRanges) {
