@@ -41,7 +41,7 @@ async function scrapeJobs() {
         try {
             // 每个 salaryRange 都重新启动 Puppeteer 实例
             browser = await puppeteer.launch({
-                headless: true,
+                headless: false,
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
