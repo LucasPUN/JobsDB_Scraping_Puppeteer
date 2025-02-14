@@ -50,7 +50,7 @@ async function scrapeJobs() {
                     width: 1280,
                     height: 800,
                 },
-                protocolTimeout: 120000,
+                protocolTimeout: 300000,
             });
 
             const page = await browser.newPage();
