@@ -208,6 +208,16 @@ app.listen(port, () => {
     console.log(`Server is running on ${port}`);
 });
 
+async function checkNetwork() {
+    try {
+        const response = await axios.get("https://hk.jobsdb.com/");
+        console.log("Connected successfully!", response.status);
+    } catch (error) {
+        console.error("Failed to connect!", error.message);
+    }
+}
+
+await checkNetwork();
 // Run the scraping task once upon server startup
 await scrapeJobs();
 
