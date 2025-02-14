@@ -208,7 +208,7 @@ app.listen(port, () => {
 });
 
 // Run the scraping task once upon server startup
-await scrapeJobs();
+scrapeJobs();
 
 // Set a daily interval for the scraping task
 setInterval(async () => {
