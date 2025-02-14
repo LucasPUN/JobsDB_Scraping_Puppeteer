@@ -8,6 +8,7 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 4000;
 const baseUrl = `https://jobsdb-scraping-nodejs.onrender.com`;
+// const baseUrl = `http://localhost:3001`;
 
 app.use(express.json());
 
@@ -30,6 +31,7 @@ async function fetchWithRetries(fn, retries = 3) {
 }
 
 async function scrapeJobs() {
+    // const salaryRanges = ["0-11000", "11000-14000", "14000-17000", "17000-20000", "20000-25000", "25000-30000", "30000-35000", "35000-40000", "40000-50000", "50000-60000", "60000-80000", "80000-120000"];
     const salaryRanges = ["20000-25000", "25000-30000", "30000-35000", "35000-40000"];
     const currentDate = new Date().toISOString().split("T")[0];
 
