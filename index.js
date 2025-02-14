@@ -78,7 +78,7 @@ async function scrapeJobs() {
                 try {
                     await fetchWithRetries(async () => {
                         await page.goto(url, {timeout: 120000});
-                        await page.waitForSelector('[data-card-type="JobCard"]', {timeout: 120000});
+                        await page.waitForSelector('[data-card-type="JobCard"]', {timeout: 300000});
                     });
 
                     totalPages = await page.evaluate(() => {
