@@ -30,7 +30,7 @@ async function fetchWithRetries(fn, retries = 3) {
 }
 
 async function scrapeJobs() {
-    const salaryRanges = ["20000-25000"];
+    const salaryRanges = ["20000-25000", "25000-30000", "30000-35000", "35000-40000"];
     const currentDate = new Date().toISOString().split("T")[0];
 
     for (const salaryRange of salaryRanges) {
@@ -50,7 +50,7 @@ async function scrapeJobs() {
                     width: 1280,
                     height: 800,
                 },
-                protocolTimeout: 300000,
+                protocolTimeout: 120000,
             });
 
             const page = await browser.newPage();
@@ -78,7 +78,7 @@ async function scrapeJobs() {
                 try {
                     await fetchWithRetries(async () => {
                         await page.goto(url, {timeout: 120000});
-                        await page.waitForSelector('[data-card-type="JobCard"]', {timeout: 300000});
+                        await page.waitForSelector('[data-card-type="JobCard"]', {timeout: 120000});
                     });
 
                     totalPages = await page.evaluate(() => {
