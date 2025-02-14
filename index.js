@@ -1,7 +1,8 @@
 import express from "express";
-import puppeteer from "puppeteer";
 import axios from "axios";
 import dotenv from 'dotenv';
+import puppeteer from "puppeteer-extra";
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
 dotenv.config();
 
@@ -39,6 +40,8 @@ async function scrapeJobs() {
         let browser;
         try {
             // 每个 salaryRange 都重新启动 Puppeteer 实例
+            puppeteer.use(StealthPlugin());
+
             browser = await puppeteer.launch({
                 headless: true,
                 args: [
@@ -52,10 +55,11 @@ async function scrapeJobs() {
                     width: 1280,
                     height: 800,
                 },
-                protocolTimeout: 120000,
+                protocolTimeout: 180000,
             });
 
             const page = await browser.newPage();
+            // await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
             let currentPage = 1;
             let totalPages;
             let jobCounts = {
