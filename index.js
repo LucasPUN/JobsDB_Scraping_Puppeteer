@@ -52,7 +52,7 @@ async function scrapeJobs() {
                     width: 1280,
                     height: 800,
                 },
-                protocolTimeout: 120000,
+                protocolTimeout: 1200000,
             });
 
             const page = await browser.newPage();
@@ -80,7 +80,7 @@ async function scrapeJobs() {
                 try {
                     await fetchWithRetries(async () => {
                         await page.goto(url, {timeout: 120000});
-                        await page.waitForSelector('[data-card-type="JobCard"]', {timeout: 120000});
+                        await page.waitForSelector('[data-card-type="JobCard"]', {timeout: 1200000});
                     });
 
                     totalPages = await page.evaluate(() => {
