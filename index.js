@@ -1,15 +1,13 @@
 import express from "express";
 import puppeteer from "puppeteer";
 import axios from "axios";
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 4000;
-const baseUrl =
-    `https://jobsdb-scraping-nodejs.onrender.com`; //production
-    // 'http://localhost:3001';
+const baseUrl = `https://jobsdb-scraping-nodejs.onrender.com`; // 生产环境
 
 app.use(express.json());
 
@@ -17,46 +15,57 @@ app.get("/", (req, res) => {
     res.status(200).send("Server is running");
 });
 
-// Helper function to handle retries
+// 处理重试逻辑的函数
 async function fetchWithRetries(fn, retries = 3) {
     try {
         return await fn();
     } catch (error) {
-        if (error.message.includes('detached') && retries > 0) {
+        if (error.message.includes("detached") && retries > 0) {
             console.warn(`Retrying due to detached frame: ${error}`);
-            return fetchWithRetries(fn, retries - 1);  // Retry if the error is frame detachment
+            return fetchWithRetries(fn, retries - 1);
         } else {
-            throw error;  // Throw if max retries reached or another error occurred
+            throw error;
         }
     }
 }
 
+// 处理 Puppeteer 页面导航失败的函数
+async function safeGoto(page, url, maxRetries = 3) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`Attempt ${attempt}: Navigating to ${url}`);
+            await page.goto(url, { timeout: 300000, waitUntil: "domcontentloaded" });
+            return;
+        } catch (error) {
+            console.error(`Error loading page (Attempt ${attempt}): ${error.message}`);
+            if (attempt === maxRetries) throw error;
+        }
+    }
+}
+
+// 主爬虫函数
 async function scrapeJobs() {
     const salaryRanges = ["20000-25000"];
-    // "25000-30000", "30000-35000", "35000-40000"
     const currentDate = new Date().toISOString().split("T")[0];
 
     for (const salaryRange of salaryRanges) {
         let browser;
         try {
-            // 每个 salaryRange 都重新启动 Puppeteer 实例
             browser = await puppeteer.launch({
                 headless: true,
                 args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-accelerated-2d-canvas',
-                    '--disable-gpu',
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-accelerated-2d-canvas",
+                    "--disable-gpu",
                 ],
-                defaultViewport: {
-                    width: 1280,
-                    height: 800,
-                },
-                protocolTimeout: 120000,
+                defaultViewport: { width: 1280, height: 800 },
+                protocolTimeout: 300000, // 设置 Puppeteer 全局超时时间
             });
 
             const page = await browser.newPage();
+            await page.setDefaultNavigationTimeout(300000); // 设置页面导航超时
             let currentPage = 1;
             let totalPages;
             let jobCounts = {
@@ -69,7 +78,7 @@ async function scrapeJobs() {
                 springCount: 0,
                 nodeJsCount: 0,
                 mySqlCount: 0,
-                noSqlCount: 0
+                noSqlCount: 0,
             };
 
             let jobCount = 0;
@@ -80,34 +89,15 @@ async function scrapeJobs() {
 
                 try {
                     await fetchWithRetries(async () => {
-                        await page.goto(url, {timeout: 120000});
-                        // await page.waitForSelector('[data-card-type="JobCard"]', {timeout: 120000});
+                        await safeGoto(page, url);
                         await page.waitForFunction(() => {
                             return document.querySelectorAll('[data-card-type="JobCard"]').length > 0;
-                        }, { timeout: 180000 });
+                        }, { timeout: 300000 });
                     });
 
                     totalPages = await page.evaluate(() => {
-                        const totalJobsCount = document.querySelector(
-                            '[data-automation="totalJobsCount"]'
-                        ).innerText;
+                        const totalJobsCount = document.querySelector('[data-automation="totalJobsCount"]').innerText;
                         return Math.ceil(Number(totalJobsCount) / 32);
-                    });
-
-                    const jobCardData = await page.evaluate(() => {
-                        const jobCards = document.querySelectorAll('[data-card-type="JobCard"]');
-                        const jobData = [];
-                        jobCards.forEach((card) => {
-                            const dataElements = card.querySelectorAll('[data-automation]');
-                            const data = {};
-                            data["id"] = card.dataset.jobId;
-                            dataElements.forEach((element) => {
-                                const key = element.getAttribute("data-automation");
-                                data[key] = element.innerText.trim();
-                            });
-                            jobData.push(data);
-                        });
-                        return jobData;
                     });
 
                     const jobCards = await page.$$('[data-card-type="JobCard"]');
@@ -115,23 +105,18 @@ async function scrapeJobs() {
 
                     for (const jobCard of jobCards) {
                         const jobTitleElement = await jobCard.$('[data-automation="jobTitle"]');
-                        await jobTitleElement.click();
+                        if (!jobTitleElement) continue;
 
-                        await page.waitForSelector('[data-automation="jobAdDetails"]', {timeout: 120000});
+                        await page.waitForTimeout(1000); // 避免点击太快
+                        await jobTitleElement.click();
+                        await page.waitForSelector('[data-automation="jobAdDetails"]', { timeout: 300000 });
 
                         const detailData = await page.evaluate(() => {
-                            const jobDetail = document.querySelectorAll('[data-automation="jobAdDetails"]');
-                            const jobDetailData = [];
-                            const data = {};
-                            jobDetail.forEach((element) => {
-                                const key = element.getAttribute("data-automation");
-                                data[key] = element.innerText.trim();
-                            });
-                            jobDetailData.push(data);
-                            return jobDetailData;
+                            const jobDetail = document.querySelector('[data-automation="jobAdDetails"]');
+                            return jobDetail ? { jobAdDetails: jobDetail.innerText.trim() } : {};
                         });
 
-                        const jobDescription = detailData[0]?.["jobAdDetails"].toLowerCase().replace(/\s+/g, "");
+                        const jobDescription = detailData?.jobAdDetails?.toLowerCase().replace(/\s+/g, "");
 
                         if (jobDescription.includes("java")) jobCounts.javaCount++;
                         if (jobDescription.includes("python")) jobCounts.pythonCount++;
@@ -147,8 +132,7 @@ async function scrapeJobs() {
                         const combinedItem = {
                             date: currentDate,
                             salaryRange: salaryRange,
-                            ...jobCardData.shift(),
-                            ...detailData.shift(),
+                            ...detailData,
                         };
                         combinedData.push(combinedItem);
                     }
@@ -162,24 +146,22 @@ async function scrapeJobs() {
                         date: currentDate,
                     };
 
-                    if (combinedData) {
-
+                    if (combinedData.length > 0) {
                         try {
                             console.log(`Calling API ${salaryRange}-page-${currentPage}....`);
                             await axios.post(`${baseUrl}/v1/job-detail-list`, combinedData, {
-                                headers: {
-                                    "Content-Type": "application/json",
-                                },
+                                headers: { "Content-Type": "application/json" },
                             });
                             console.log(`Successfully added ${salaryRange}-page-${currentPage} to server`);
                         } catch (err) {
-                            console.error(err);
+                            console.error(`Failed to send job details: ${err}`);
                         }
                     }
+
                     currentPage++;
                 } catch (error) {
                     console.error(`Error during scraping: ${error}`);
-                    break; // Exit the loop if an error occurs
+                    break;
                 }
             } while (currentPage <= totalPages);
 
@@ -187,35 +169,34 @@ async function scrapeJobs() {
                 try {
                     console.log(`Calling count API`);
                     await axios.post(`${baseUrl}/v1/job-count`, countItem, {
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
+                        headers: { "Content-Type": "application/json" },
                     });
                     console.log(`Successfully added count`);
                 } catch (err) {
-                    console.error(err);
+                    console.error(`Failed to send job count: ${err}`);
                 }
             }
         } catch (err) {
             console.error(`Failed to initialize Puppeteer: ${err}`);
         } finally {
             if (browser) {
-                await browser.close(); // 确保关闭浏览器实例
+                await browser.close();
+                console.log("Browser closed");
             }
         }
     }
 }
 
-// Set server to listen first, which allows it to handle requests immediately
+// 启动服务器
 app.listen(port, () => {
     console.log(`Server is running on ${port}`);
 });
 
-// Run the scraping task once upon server startup
-await scrapeJobs();
+// 服务器启动时运行爬取任务
+scrapeJobs();
 
-// Set a daily interval for the scraping task
+// 设置定时任务，每 24 小时运行一次
 setInterval(async () => {
     console.log("Running scraping task");
     await scrapeJobs();
-}, 24 * 60 * 60 * 1000); // 24 hours
+}, 24 * 60 * 60 * 1000);
