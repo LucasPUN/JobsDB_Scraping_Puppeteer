@@ -28,8 +28,8 @@ Ensure you have the following installed:
 ### Installation Steps
 1. Clone this repository:
    ```sh
-   git clone https://github.com/your-repo/job-scraper.git
-   cd job-scraper
+   git clone https://github.com/LucasPUN/JobsDB_Scraping_Puppeteer.git
+   cd JobsDB_Scraping_Puppeteer
    ```
 2. Install dependencies:
    ```sh
