@@ -38,7 +38,7 @@ Ensure you have the following installed:
 3. Create a `.env` file in the root directory and configure:
    ```env
    PORT=4000
-   BASE_URL=https://your-own-backend-url.com
+   BASE_URL=[https://jobsdb-scraping-nodejs.onrender.com](https://your-own-backend-url.com)
    ```
 4. Run the project:
    ```sh
